@@ -29,7 +29,7 @@ jobs:
     - name: Build RetroED
       working-directory: build
       run: |
-        qmake ../RetroEDv2/RetroEDv2.pro -spec win32-msvc -config release "CONFIG+=qtquickcompiler"
+        qmake ../RetroEDv2/RetroEDv2.pro -spec win32-msvc -config release "CONFIG+=qtquickcompiler" "ENV+=GITHUB_ACTION"
         ./jom -j4
     - name: Move Artifacts
       run: |
