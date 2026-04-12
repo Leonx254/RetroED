@@ -172,7 +172,6 @@ void ViewerWidget::mouseMoveEvent(QMouseEvent *event)
 
     row = x;
     col = y;
-    PrintLog(QString("row %1 col %2").arg(row).arg(col));
     update();
 }
 

@@ -18,6 +18,7 @@ class ChunkReplaceOptions;
 class ChunkSelector;
 class TilesetEditor;
 class ScenePreviewPalette;
+class StageImport;
 
 #include <RSDKv4/tileconfigv4.hpp>
 
@@ -91,6 +92,7 @@ public:
     bool altDownL   = false;
     bool shiftDownL = false;
 
+    bool useDCFormat  = false;
     bool viewerActive = false; // prevents shortcut windows from opening twice when sceneViewer is active
 
     Vector2<float> selectionOffset = Vector2<float>(0.0f, 0.0f);
@@ -165,9 +167,9 @@ public:
 
 signals:
     void TitleChanged(QString title, QString tabFullPath);
-
+    void calcAngles(RSDKv5::TileConfig::CollisionMask *outputAngles, RSDKv1::TileConfig::CollisionMask *inputMask);
 public slots:
-    void updateType(SceneEntity *entity, byte type);
+    void updateType(SceneEntity *entity, byte type, bool keepVals = false);
 protected:
     bool event(QEvent *event);
     bool eventFilter(QObject *object, QEvent *event);
@@ -178,9 +180,13 @@ private:
         COPY_LAYER,
         COPY_CHUNK,
         COPY_ENTITY,
+        COPY_ENTITY_SELECT,
         COPY_SCROLLINFO,
     };
     void *clipboard    = nullptr;
+    QList<int> clipboardIDs;
+    QList<Vector2<float>> clipboardOffset;
+    Vector2<float> clipPosCenter;
     byte clipboardType = COPY_NONE;
     int clipboardInfo  = 0;
 
@@ -219,7 +225,8 @@ private:
     Ui::SceneEditor *ui;
 
     ChunkEditor *chunkEdit = nullptr;
-    ChunkReplaceOptions *chunkRpl = nullptr;
+    //ChunkReplaceOptions *chunkRpl = nullptr;
+    StageImport *stgImp = nullptr;
     QList<ActionState> actions;
     int actionIndex = 0;
 

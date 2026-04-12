@@ -15,8 +15,8 @@ SceneProperties::SceneProperties(QWidget *parent) : QWidget(parent), ui(new Ui::
     editCHK   = ui->editChunks;
     editSCF   = ui->editStageConfig;
     editPAL   = ui->editPalette;
-    editTSet  = ui->editTSet;
-    copyPlane = ui->copyPlane;
+    //editTSet  = ui->editTSet;
+    //copyPlane = ui->copyPlane;
 
 
     objCnt    = ui->objCnt;
@@ -28,14 +28,17 @@ SceneProperties::SceneProperties(QWidget *parent) : QWidget(parent), ui(new Ui::
     syncGC     = ui->syncGC;
     syncSC     = ui->syncSC;
     reloadLink = ui->reloadLink;
-
-    replaceChunk = ui->replaceChunk;
+    //replaceChunk = ui->replaceChunk;
+    //stageImport  = ui->stageImport;
 
     bgSel = new color_widgets::ColorPreview(this);
     ui->bgClrLayout->addWidget(bgSel);
 
     altBGSel = new color_widgets::ColorPreview(this);
     ui->altBGClrLayout->addWidget(altBGSel);
+
+    v1PropertiesBox = ui->v1PropertiesBox;
+    layers = ui->layers;
 
     sceneEditor = (void *)parent;
 }

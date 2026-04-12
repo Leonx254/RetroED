@@ -60,14 +60,16 @@ SOURCES += \
     tools/sceneproperties/chunkcollisioneditor.cpp \
     tools/sceneproperties/chunkcollisioneditorv1.cpp \
     tools/sceneproperties/chunkeditor.cpp \
-    tools/sceneproperties/chunkreplaceoptions.cpp \
     tools/sceneproperties/confirmgamelink.cpp \
     tools/sceneproperties/copyplane.cpp \
     tools/sceneproperties/createscene.cpp \
+    tools/sceneproperties/gfxreplacetool.cpp \
     tools/sceneproperties/gotopos.cpp \
+    tools/sceneproperties/importgfxtool.cpp \
     tools/sceneproperties/objectselector.cpp \
     tools/sceneproperties/scenelayerproperties.cpp \
     tools/sceneproperties/scenelayerpropertiesv5.cpp \
+    tools/sceneproperties/scenelayershift.cpp \
     tools/sceneproperties/sceneobjectproperties.cpp \
     tools/sceneproperties/sceneobjectpropertiesv5.cpp \
     tools/sceneproperties/sceneproperties.cpp \
@@ -132,15 +134,17 @@ HEADERS += \
     tools/sceneproperties/chunkcollisioneditor.hpp \
     tools/sceneproperties/chunkcollisioneditorv1.hpp \
     tools/sceneproperties/chunkeditor.hpp \
-    tools/sceneproperties/chunkreplaceoptions.hpp \
     tools/sceneproperties/confirmgamelink.hpp \
     tools/sceneproperties/copyplane.hpp \
     tools/sceneproperties/createscene.hpp \
+    tools/sceneproperties/gfxreplacetool.hpp \
     tools/sceneproperties/gotopos.hpp \
+    tools/sceneproperties/importgfxtool.hpp \
     tools/sceneproperties/objectselector.hpp \
     tools/sceneproperties/sceneincludesv5.hpp \
     tools/sceneproperties/scenelayerproperties.hpp \
     tools/sceneproperties/scenelayerpropertiesv5.hpp \
+    tools/sceneproperties/scenelayershift.hpp \
     tools/sceneproperties/sceneobjectproperties.hpp \
     tools/sceneproperties/sceneobjectpropertiesv5.hpp \
     tools/sceneproperties/sceneproperties.hpp \
@@ -194,14 +198,16 @@ FORMS += \
     tools/sceneproperties/chunkcollisioneditor.ui \
     tools/sceneproperties/chunkcollisioneditorv1.ui \
     tools/sceneproperties/chunkeditor.ui \
-    tools/sceneproperties/chunkreplaceoptions.ui \
     tools/sceneproperties/confirmgamelink.ui \
     tools/sceneproperties/copyplane.ui \
     tools/sceneproperties/createscene.ui \
+    tools/sceneproperties/gfxreplacetool.ui \
     tools/sceneproperties/gotopos.ui \
+    tools/sceneproperties/importgfxtool.ui \
     tools/sceneproperties/objectselector.ui \
     tools/sceneproperties/scenelayerproperties.ui \
     tools/sceneproperties/scenelayerpropertiesv5.ui \
+    tools/sceneproperties/scenelayershift.ui \
     tools/sceneproperties/sceneobjectproperties.ui \
     tools/sceneproperties/sceneobjectpropertiesv5.ui \
     tools/sceneproperties/sceneproperties.ui \
@@ -236,9 +242,18 @@ win32 {
     QMAKE_TARGET_COMPANY = RSDKModdingTeam
     QMAKE_TARGET_DESCRIPTION = RetroED
     QMAKE_TARGET_COPYRIGHT = RSDKModdingTeam
-    CONFIG(debug, debug | release){ DESTDIR = $$OUT_PWD/debug }
-    else { DESTDIR = $$OUT_PWD/release }
-    QMAKE_POST_LINK = windeployqt --dir $$shell_path($$DESTDIR/deploy) $$shell_path($$DESTDIR/$${TARGET}.exe)
+    CONFIG(debug, debug | release){ DESTDIR = $$OUT_PWD/debug/RetroED }
+    else {
+        DESTDIR = $$OUT_PWD/release/RetroED
+        !static {
+            contains(ENV, GITHUB_ACTION) { QMAKE_POST_LINK = windeployqt \"$$shell_path($$DESTDIR/$${TARGET}.exe)\" }
+            else {
+                #bruh
+                win32-msvc { QMAKE_POST_LINK = $$(QTDIR)/bin/windeployqt.exe \"$$shell_path($$DESTDIR/$${TARGET}.exe)\" }
+                else { QMAKE_POST_LINK = windeployqt \"$$shell_path($$DESTDIR/$${TARGET}.exe)\" }
+            }
+        }
+    }
 }
 
 #mac

@@ -225,7 +225,7 @@ void SceneViewer::initScene(QImage tileset)
     // Get Tiles (for tile list, tileset editing and collision viewer)
     tiles.clear();
     colTexStore = new QImage(0x80, 0x400 * 0x10, QImage::Format_Indexed8);
-    colTexStore->setColorTable({ 0xFFFF00FF, 0xFFFFFF00, 0xFFFF0000, 0xFFFFFFFF, 0xFF808000});
+    colTexStore->setColorTable({ 0xFFFF00FF, 0xFFE0E000, 0xFFE00000, 0xFFE0E0E0, 0xFF707000});
     colTexStore->fill(0);
     for (int i = 0; i < 0x400; ++i) {
         int tx         = ((i % (tileset.width() / 0x10)) * 0x10);
@@ -342,14 +342,24 @@ void SceneViewer::updateScene()
 
         QString status =
             QString("Zoom: %1%, Mouse Position: (%2, %3), %4 Position: (%5, %6), Selected %4: "
-                    "%7, Selected Layer: %8 (%9), Selected Object: %10")
+                            "%7")
                 .arg(zoom * 100)
                 .arg(mx)
                 .arg(my)
                 .arg(gameType == ENGINE_v5 ? "Tile" : "Chunk")
                 .arg((int)mx / tileSize)
                 .arg((int)my / tileSize)
-                .arg(gameType == ENGINE_v5 ? selectedTile : selectedChunk)
+                .arg(gameType == ENGINE_v5 ? (selectedTile == 0xFFFF ? -1 : (short)selectedTile & 0x3FF) : selectedChunk);
+            if (gameType == ENGINE_v5 && selectedTile != 0xFFFF)
+                status += QString(", Tile Flags: %1 | %2 | %3 | %4 | %5 | %6")
+                    .arg(Utils::getBit(selectedTile, 10) ? "FX" : "--")
+                    .arg(Utils::getBit(selectedTile, 11) ? "FY" : "--")
+                    .arg(Utils::getBit(selectedTile, 12) ? "AT" : "--")
+                    .arg(Utils::getBit(selectedTile, 13) ? "AS" : "--")
+                    .arg(Utils::getBit(selectedTile, 14) ? "BT" : "--")
+                    .arg(Utils::getBit(selectedTile, 15) ? "BS" : "--");
+
+            status += QString(", Selected Layer: %8 (%9), Selected Object: %10")
                 .arg(selectedLayer)
                 .arg(selectedLayer >= 0 && selectedLayer < layers.count() ? layers[selectedLayer].name
                                                                           : "[None]")
@@ -358,7 +368,7 @@ void SceneViewer::updateScene()
                          : "[None]");
         QString gameLinkState;
         if (gameType == ENGINE_v5){
-            status += QString(", Selected Stamp: %1").arg(selectedStamp);
+            status += QString(", Selected Stamp: %1").arg((short)selectedStamp);
             if (engineRevision != 1)
                 status += QString(", Filter: %1").arg(sceneFilter);
             if (!v5Editor->gameLinks.count()){
@@ -1058,30 +1068,32 @@ void SceneViewer::drawScene()
 
             validDraw = false;
 
-            if (!objects[entity->type].visible)
-                continue;
+            if (entity->type < objects.count()){
+                if (!objects[entity->type].visible)
+                    continue;
 
-            int filter = 0xFF;
-            for (int v = 0; v < objects[entity->type].variables.count(); ++v) {
-                if (objects[entity->type].variables[v].name == "filter") {
-                    if (v < entity->variables.count())
-                        filter = entity->variables[v].value_uint8;
-                    break;
+                int filter = 0xFF;
+                for (int v = 0; v < objects[entity->type].variables.count(); ++v) {
+                    if (objects[entity->type].variables[v].name == "filter") {
+                        if (v < entity->variables.count())
+                            filter = entity->variables[v].value_uint8;
+                        break;
+                    }
                 }
-            }
 
-            if (!(filter & sceneFilter) && filter)
-                continue;
+                if (!(filter & sceneFilter) && filter)
+                    continue;
 
-            if (drawLayers[p].entries[o] == selectedEntity
-                || selectedEntities.indexOf(drawLayers[p].entries[o]) >= 0)
-                continue;
+                if (drawLayers[p].entries[o] == selectedEntity
+                    || selectedEntities.indexOf(drawLayers[p].entries[o]) >= 0)
+                    continue;
 
-            if (entity->type != 0) {
-                if (gameType == ENGINE_v5)
-                    emit callGameEventv5(objects[entity->type].name, EVENT_DRAW, entity);
-                else
-                    emit callGameEvent(EVENT_DRAW, drawLayers[p].entries[o]);
+                if (entity->type != 0) {
+                    if (gameType == ENGINE_v5)
+                        emit callGameEventv5(objects[entity->type].name, EVENT_DRAW, entity);
+                    else
+                        emit callGameEvent(EVENT_DRAW, drawLayers[p].entries[o]);
+                }
             }
 
             // Draw Default Object Sprite if invalid
@@ -1407,35 +1419,6 @@ void SceneViewer::drawScene()
         }
     }
 
-    // Selected Stamp Box
-    if (selectedStamp >= 0 && selectedStamp < stamps.stampList.count()) {
-        RSDKv5::Stamps::StampEntry &stamp = stamps.stampList[selectedStamp];
-
-        float left   = stamp.pos.x;
-        float top    = stamp.pos.y;
-        float right  = stamp.pos.x + stamp.size.x;
-        float bottom = stamp.pos.y + stamp.size.y;
-
-        float w = fabsf((right - left) * 16), h = fabsf((bottom - top) * 16);
-
-
-        Vector4<float> c = {1.0f, 1.0f, 0.0f, 1.0f};
-
-        int lyrWidth = layers[selectedLayer].width;
-        int lyrHeight = layers[selectedLayer].height;
-        if (left < 0 || left > lyrWidth || right < 0 || right > lyrWidth ||
-            top < 0 || top > lyrHeight || bottom < 0 || bottom > lyrHeight)
-            c = {1.0f, 0.0f, 0.0f, 1.0f};
-
-        left *= 16; top *= 16; right *= 16; bottom *= 16;
-
-        left -= cameraPos.x;
-        top -= cameraPos.y;
-
-        drawRect(left, top, w, h, c, false, 0x40, INK_ALPHA);
-        drawRect(left, top, w, h, c, true);
-    }
-
     // STAMP PREVIEW
     if ((selectedStamp != 0xFFFF) && (selectedLayer >= 0 && layers[selectedLayer].visible) && curTool == TOOL_STAMP) {
         float tx = tilePos.x;
@@ -1452,33 +1435,31 @@ void SceneViewer::drawScene()
         ty -= fmodf(ty2, tileSize);
 
         // Draw Selected Tile Preview
-        float xpos = tx + cameraPos.x;
-        float ypos = ty + cameraPos.y;
+        float xpos = tx;
+        float ypos = ty;
 
-        xpos -= cameraPos.x;
-        ypos -= cameraPos.y;
-
+        float mousePosX = (mousePos.x * invZoom()) + cameraPos.x;
+        float mousePosY = (mousePos.y * invZoom()) + cameraPos.y;
         auto stamp = stamps.stampList[selectedStamp];
 
         // Invalid draw position prevention
-        if (0 > stamp.pos.x || stamp.pos.x + stamp.size.x > layers[selectedLayer].width ||
-            0 > stamp.pos.y || stamp.pos.y + stamp.size.y > layers[selectedLayer].height){
+        if ((0 > mousePosX) || (int)(mousePosX / 16) + stamp.size.x > layers[selectedLayer].width ||
+            (0 > mousePosY) || (int)(mousePosY / 16) + stamp.size.y > layers[selectedLayer].height){
 
             drawRect(xpos, ypos, stamp.size.x * tileSize, stamp.size.y * tileSize, Vector4<float>(1.0f, 0.0f, 0.0f, 1.0f),
                      true, 0x40, INK_ALPHA);
         }
         else {
             int count = 0;
+            int t = 0;
             for(int y = 0; y < stamp.size.y; y++){
                 for(int x = 0; x < stamp.size.x; x++){
-                    int tileXPos = stamp.pos.x + x;
-                    int tileYPos = stamp.pos.y + y;
-                    ushort tile = layers[selectedLayer].layout[tileYPos][tileXPos];
+                    ushort tile = stamp.tiles[t++];
                     if (tile != 0xFFFF) {
                         ++count;
 
-                        float tileX                       = xpos + (x * tileSize);
-                        float tileY                       = ypos + (y * tileSize);
+                        float tileX = xpos + (x * tileSize);
+                        float tileY = ypos + (y * tileSize);
 
                         int flipX = Utils::getBit(tile, 10);
                         int flipY = Utils::getBit(tile, 11);

@@ -2,12 +2,15 @@
 <ui version="4.0">
  <class>SceneTileProperties</class>
  <widget class="QWidget" name="SceneTileProperties">
+  <property name="enabled">
+   <bool>false</bool>
+  </property>
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>211</width>
-    <height>651</height>
+    <width>267</width>
+    <height>703</height>
    </rect>
   </property>
   <property name="sizePolicy">
@@ -35,10 +38,16 @@
    <property name="bottomMargin">
     <number>3</number>
    </property>
-   <item row="0" column="1">
-    <widget class="QLabel" name="label_9">
+   <item row="0" column="3">
+    <widget class="QRadioButton" name="colPlaneB">
+     <property name="minimumSize">
+      <size>
+       <width>30</width>
+       <height>0</height>
+      </size>
+     </property>
      <property name="text">
-      <string>Collision Plane</string>
+      <string>B</string>
      </property>
     </widget>
    </item>
@@ -69,7 +78,7 @@
          </size>
         </property>
         <property name="text">
-         <string>Retro-Sonic Properties</string>
+         <string>RSDKv1 Properties</string>
         </property>
        </widget>
       </item>
@@ -191,43 +200,71 @@
      </layout>
     </widget>
    </item>
-   <item row="1" column="0" colspan="4">
-    <widget class="Line" name="line">
-     <property name="orientation">
-      <enum>Qt::Horizontal</enum>
+   <item row="13" column="0" colspan="4">
+    <widget class="QPushButton" name="editChunkCol">
+     <property name="enabled">
+      <bool>false</bool>
      </property>
-    </widget>
-   </item>
-   <item row="12" column="0" colspan="4">
-    <widget class="QPushButton" name="replaceTile">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
      <property name="text">
-      <string>Replace Tile</string>
+      <string>Edit Chunk Collision</string>
      </property>
     </widget>
    </item>
-   <item row="0" column="0">
-    <widget class="QLabel" name="tID">
+   <item row="23" column="0">
+    <widget class="QFrame" name="tileFrame">
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
      <property name="minimumSize">
       <size>
-       <width>60</width>
-       <height>0</height>
+       <width>256</width>
+       <height>256</height>
       </size>
      </property>
-     <property name="text">
-      <string>Tile:</string>
+     <property name="maximumSize">
+      <size>
+       <width>256</width>
+       <height>256</height>
+      </size>
      </property>
+     <property name="focusPolicy">
+      <enum>Qt::StrongFocus</enum>
+     </property>
+     <property name="frameShape">
+      <enum>QFrame::NoFrame</enum>
+     </property>
+     <layout class="QVBoxLayout" name="verticalLayout">
+      <property name="sizeConstraint">
+       <enum>QLayout::SetNoConstraint</enum>
+      </property>
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+     </layout>
     </widget>
    </item>
-   <item row="0" column="3">
-    <widget class="QRadioButton" name="colPlaneB">
-     <property name="minimumSize">
-      <size>
-       <width>30</width>
-       <height>0</height>
-      </size>
-     </property>
+   <item row="22" column="0" colspan="2">
+    <widget class="QCheckBox" name="angleCheck">
      <property name="text">
-      <string>B</string>
+      <string>Manual Angle Point Mode</string>
      </property>
     </widget>
    </item>
@@ -685,13 +722,60 @@
      </layout>
     </widget>
    </item>
-   <item row="19" column="0" colspan="4">
+   <item row="0" column="2">
+    <widget class="QRadioButton" name="colPlaneA">
+     <property name="minimumSize">
+      <size>
+       <width>30</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="text">
+      <string>A</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="0">
+    <widget class="QLabel" name="tID">
+     <property name="minimumSize">
+      <size>
+       <width>60</width>
+       <height>0</height>
+      </size>
+     </property>
+     <property name="text">
+      <string>Tile:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="12" column="0" colspan="4">
+    <widget class="QPushButton" name="replaceTile">
+     <property name="text">
+      <string>Replace Tile</string>
+     </property>
+    </widget>
+   </item>
+   <item row="0" column="1">
+    <widget class="QLabel" name="label_9">
+     <property name="text">
+      <string>Collision Plane</string>
+     </property>
+    </widget>
+   </item>
+   <item row="1" column="0" colspan="4">
+    <widget class="Line" name="line">
+     <property name="orientation">
+      <enum>Qt::Horizontal</enum>
+     </property>
+    </widget>
+   </item>
+   <item row="20" column="0" colspan="4">
     <widget class="QListWidget" name="tileList">
      <property name="showDropIndicator" stdset="0">
       <bool>false</bool>
      </property>
      <property name="dragDropMode">
-      <enum>QAbstractItemView::NoDragDrop</enum>
+      <enum>QAbstractItemView::DragDrop</enum>
      </property>
      <property name="defaultDropAction">
       <enum>Qt::IgnoreAction</enum>
@@ -728,71 +812,10 @@
      </property>
     </widget>
    </item>
-   <item row="20" column="0">
-    <widget class="QFrame" name="tileFrame">
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="minimumSize">
-      <size>
-       <width>256</width>
-       <height>256</height>
-      </size>
-     </property>
-     <property name="focusPolicy">
-      <enum>Qt::StrongFocus</enum>
-     </property>
-     <property name="frameShape">
-      <enum>QFrame::NoFrame</enum>
-     </property>
-     <layout class="QVBoxLayout" name="verticalLayout">
-      <property name="sizeConstraint">
-       <enum>QLayout::SetNoConstraint</enum>
-      </property>
-      <property name="leftMargin">
-       <number>0</number>
-      </property>
-      <property name="topMargin">
-       <number>0</number>
-      </property>
-      <property name="rightMargin">
-       <number>0</number>
-      </property>
-      <property name="bottomMargin">
-       <number>0</number>
-      </property>
-     </layout>
-    </widget>
-   </item>
-   <item row="0" column="2">
-    <widget class="QRadioButton" name="colPlaneA">
-     <property name="minimumSize">
-      <size>
-       <width>30</width>
-       <height>0</height>
-      </size>
-     </property>
+   <item row="21" column="0" colspan="4">
+    <widget class="QLabel" name="helpLabel">
      <property name="text">
-      <string>A</string>
-     </property>
-    </widget>
-   </item>
-   <item row="13" column="0" colspan="4">
-    <widget class="QPushButton" name="editChunkCol">
-     <property name="enabled">
-      <bool>false</bool>
-     </property>
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="text">
-      <string>Edit Chunk Collision</string>
+      <string>Left Click: Set Height | Right Click: Set Solidity</string>
      </property>
     </widget>
    </item>

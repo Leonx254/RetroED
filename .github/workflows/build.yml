@@ -1,6 +1,12 @@
 name: Build RetroED
 
-on: workflow_dispatch
+on:
+  push:
+    paths:
+      - RetroEDv2/**
+      - .github/workflows/build.yml
+    branches:
+      - master
 
 jobs:
   win-build:
@@ -15,6 +21,7 @@ jobs:
     - name: Install Qt
       uses: jurplel/install-qt-action@v4
       with:
+        version: '5.15.2'
         cache: true
     - name: Download Jom
       run: |
@@ -35,4 +42,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: RetroED-win
-        path: build/release/deploy
+        path: build/release/RetroED

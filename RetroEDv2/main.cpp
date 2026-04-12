@@ -88,6 +88,21 @@ QPalette darkPal;
 
 int main(int argc, char *argv[])
 {
+    // Force to use X11 because Wayland is broke in QT 5x
+    #ifdef Q_OS_LINUX
+        qputenv("QT_QPA_PLATFORM", "xcb");
+    #endif
+
+    QSurfaceFormat format = QSurfaceFormat::defaultFormat();
+    format.setDepthBufferSize(24);
+    format.setStencilBufferSize(8);
+    format.setMajorVersion(3);
+    format.setMinorVersion(3);
+    format.setSwapInterval(appConfig.vSync);
+    format.setProfile(QSurfaceFormat::CoreProfile);
+
+    QSurfaceFormat::setDefaultFormat(format);
+
     QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
 
@@ -126,16 +141,6 @@ int main(int argc, char *argv[])
         appConfig.write(appDir + "appConfig.bin");
     else
         appConfig.read(appDir + "appConfig.bin");
-
-    QSurfaceFormat format;
-    format.setDepthBufferSize(24);
-    format.setStencilBufferSize(8);
-    format.setMajorVersion(3);
-    format.setMinorVersion(2);
-    format.setSwapInterval(appConfig.vSync);
-    format.setProfile(QSurfaceFormat::CoreProfile);
-
-    QSurfaceFormat::setDefaultFormat(format);
 
     QCoreApplication::processEvents();
     splash.showMessage("Configuring style...");
@@ -179,35 +184,13 @@ int main(int argc, char *argv[])
 
     splash.showMessage("Setting up file lists...");
 
-    // copy RSDKv4 file list if it doesn't exist
-    if (!QFile(homeDir + "RSDKv4FileList.txt").exists()) {
-        Reader reader(":/resources/RSDKv4FileList.txt");
+    // copy RSDK file list if it doesn't exist
+    if (!QFile(homeDir + "RSDKFileList.txt").exists()) {
+        Reader reader(":/resources/RSDKFileList.txt");
         QByteArray bytes = reader.readByteArray(reader.filesize);
         reader.close();
 
-        Writer writer(homeDir + "RSDKv4FileList.txt");
-        writer.write(bytes);
-        writer.flush();
-    }
-
-    // copy RSDKv5 file list if it doesn't exist
-    if (!QFile(homeDir + "RSDKv5FileList.txt").exists()) {
-        Reader reader(":/resources/RSDKv5FileList.txt");
-        QByteArray bytes = reader.readByteArray(reader.filesize);
-        reader.close();
-
-        Writer writer(homeDir + "RSDKv5FileList.txt");
-        writer.write(bytes);
-        writer.flush();
-    }
-
-    // copy RSDKv5U file list if it doesn't exist
-    if (!QFile(homeDir + "RSDKv5UFileList.txt").exists()) {
-        Reader reader(":/resources/RSDKv5UFileList.txt");
-        QByteArray bytes = reader.readByteArray(reader.filesize);
-        reader.close();
-
-        Writer writer(homeDir + "RSDKv5UFileList.txt");
+        Writer writer(homeDir + "RSDKFileList.txt");
         writer.write(bytes);
         writer.flush();
     }
