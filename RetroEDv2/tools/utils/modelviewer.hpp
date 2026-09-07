@@ -2,6 +2,7 @@
 
 #include <RSDKv4/modelv4.hpp>
 #include <RSDKv5/modelv5.hpp>
+#include <RSDKv3D/modelv3D.hpp>
 
 class ModelViewer : public QOpenGLWidget
 {
@@ -283,6 +284,8 @@ public:
 
     RSDKv5::Model model;
 
+    RSDKv3D::Model::Animator S3DAni;
+    RSDKv3D::Model S3Dmodel;
     RSDKv5::Model::Frame *curFrame  = nullptr;
     RSDKv5::Model::Frame *nextFrame = nullptr;
     int loopIndex                   = 0;
@@ -299,6 +302,11 @@ public:
 
     void setModel(RSDKv5::Model m, QString tex = "");
     void setModel(RSDKv4::Model m, QString tex = "");
+    void setModel(RSDKv3D::Model::TMF mdl, QString tex = "");
+    void getAnimations(RSDKv3D::Model::Animator *animator, QString path = "");
+    void setPlayerVertexPositions(int nodeID);
+    void setPlayerVertexNormals(int nodeID);
+    void setAnimationFrame();
     RSDKv4::Model getModelv4();
 
     void loadTexture(QString texturePath);
@@ -327,6 +335,10 @@ protected:
 private:
     QMatrix4x4 matModel;
     QMatrix4x4 matWorld;
+
+    QMatrix4x4 matrixIdentity;
+    QMatrix4x4 matrixSonicNodeRotation[36];
+    QMatrix4x4 matrixSonicNodeTransform[36];
 
     QOpenGLFramebufferObject *outFB = nullptr;
     QOpenGLBuffer *vertVBO, *colorVBO, *normalVBO, *texVBO, *indexVBO;

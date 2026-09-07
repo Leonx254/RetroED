@@ -19,7 +19,11 @@ public:
 
     void setupUI(SceneViewer *viewer, byte layerID);
     void unsetUI();
-
+signals:
+    void updateLayerSize(int newSize, bool isHeight = false);
+    void updateParallax(double v);
+    void updateScroll(double v);
+    void updateType(int v);
 private:
     Ui::SceneLayerProperties *ui;
 };

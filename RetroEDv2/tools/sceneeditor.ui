@@ -513,7 +513,7 @@
         <x>0</x>
         <y>0</y>
         <width>185</width>
-        <height>181</height>
+        <height>151</height>
        </rect>
       </property>
       <attribute name="label">
@@ -538,7 +538,7 @@
         <x>0</x>
         <y>0</y>
         <width>185</width>
-        <height>181</height>
+        <height>151</height>
        </rect>
       </property>
       <attribute name="label">
@@ -552,7 +552,7 @@
         <x>0</x>
         <y>0</y>
         <width>185</width>
-        <height>181</height>
+        <height>151</height>
        </rect>
       </property>
       <attribute name="label">
@@ -621,27 +621,13 @@
         <x>0</x>
         <y>0</y>
         <width>171</width>
-        <height>199</height>
+        <height>169</height>
        </rect>
       </property>
       <attribute name="label">
        <string>Entity List</string>
       </attribute>
       <layout class="QGridLayout" name="gridLayout_4">
-       <item row="4" column="2">
-        <widget class="QToolButton" name="upEnt">
-         <property name="toolTip">
-          <string>Moves an entity up</string>
-         </property>
-         <property name="text">
-          <string>U</string>
-         </property>
-         <property name="icon">
-          <iconset resource="../resources.qrc">
-           <normaloff>:/icons/ic_arrow_upward_48px.svg</normaloff>:/icons/ic_arrow_upward_48px.svg</iconset>
-         </property>
-        </widget>
-       </item>
        <item row="4" column="5">
         <widget class="QToolButton" name="rmEnt">
          <property name="enabled">
@@ -659,26 +645,17 @@
          </property>
         </widget>
        </item>
-       <item row="4" column="1">
-        <spacer name="horizontalSpacer_6">
-         <property name="orientation">
-          <enum>Qt::Horizontal</enum>
+       <item row="4" column="2">
+        <widget class="QToolButton" name="upEnt">
+         <property name="toolTip">
+          <string>Moves an entity up</string>
          </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>40</width>
-           <height>20</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-       <item row="1" column="0" colspan="6">
-        <widget class="QListWidget" name="entityList"/>
-       </item>
-       <item row="0" column="0" colspan="6">
-        <widget class="QLabel" name="totalEntCount">
          <property name="text">
-          <string>Total Entity Count</string>
+          <string>U</string>
+         </property>
+         <property name="icon">
+          <iconset resource="../resources.qrc">
+           <normaloff>:/icons/ic_arrow_upward_48px.svg</normaloff>:/icons/ic_arrow_upward_48px.svg</iconset>
          </property>
         </widget>
        </item>
@@ -693,6 +670,29 @@
          <property name="icon">
           <iconset resource="../resources.qrc">
            <normaloff>:/icons/ic_add_circle_48px.svg</normaloff>:/icons/ic_add_circle_48px.svg</iconset>
+         </property>
+        </widget>
+       </item>
+       <item row="1" column="0" colspan="6">
+        <widget class="QListWidget" name="entityList"/>
+       </item>
+       <item row="4" column="4">
+        <spacer name="horizontalSpacer_2">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item row="0" column="0" colspan="6">
+        <widget class="QLabel" name="totalEntCount">
+         <property name="text">
+          <string>Total Entity Count</string>
          </property>
         </widget>
        </item>
@@ -717,8 +717,8 @@
          </property>
         </widget>
        </item>
-       <item row="4" column="4">
-        <spacer name="horizontalSpacer_2">
+       <item row="4" column="1">
+        <spacer name="horizontalSpacer_6">
          <property name="orientation">
           <enum>Qt::Horizontal</enum>
          </property>
@@ -730,13 +730,6 @@
          </property>
         </spacer>
        </item>
-       <item row="5" column="0" colspan="6">
-        <widget class="QPushButton" name="alignEnt">
-         <property name="text">
-          <string>Re-Align Entity Slots</string>
-         </property>
-        </widget>
-       </item>
       </layout>
      </widget>
      <widget class="QWidget" name="hScrollPage">
@@ -745,7 +738,7 @@
         <x>0</x>
         <y>0</y>
         <width>185</width>
-        <height>181</height>
+        <height>151</height>
        </rect>
       </property>
       <attribute name="label">
@@ -848,7 +841,7 @@
         <x>0</x>
         <y>0</y>
         <width>185</width>
-        <height>181</height>
+        <height>151</height>
        </rect>
       </property>
       <attribute name="label">
@@ -940,6 +933,28 @@
          <property name="icon">
           <iconset resource="../resources.qrc">
            <normaloff>:/icons/ic_cancel_48px.svg</normaloff>:/icons/ic_cancel_48px.svg</iconset>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="History">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>185</width>
+        <height>151</height>
+       </rect>
+      </property>
+      <attribute name="label">
+       <string>History</string>
+      </attribute>
+      <layout class="QGridLayout" name="gridLayout_5">
+       <item row="0" column="0">
+        <widget class="QUndoView" name="undoView">
+         <property name="emptyLabel">
+          <string>Original State</string>
          </property>
         </widget>
        </item>

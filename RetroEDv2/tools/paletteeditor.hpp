@@ -10,6 +10,7 @@
 #include <RSDKv5/gameconfigv5.hpp>
 
 #include "paletteeditor/paletteimport.hpp"
+#include "paletteeditor/colourdialog.hpp"
 
 namespace Ui
 {
@@ -38,6 +39,8 @@ public:
     QColor color = 0xFF00FF;
     QList<PaletteColor> *palette;
 
+signals:
+    void changeColor(int sel, PaletteColor newClr);
 protected:
     void paintEvent(QPaintEvent *) override;
     void mouseMoveEvent(QMouseEvent *) override;
@@ -53,6 +56,22 @@ private:
     // bool m_dragging = false;
     bool enabling;
     bool pressed = false;
+};
+
+class ChangeColorCommand : public QUndoCommand
+{
+public:
+    explicit ChangeColorCommand(QList<PaletteColor> &palette, int palSlot, PaletteColor newClr, QUndoCommand *parent = nullptr);
+    explicit ChangeColorCommand(QList<PaletteColor> &palette, QList<PaletteColor> newPal, QUndoCommand *parent = nullptr);
+    void undo() override;
+    void redo() override;
+private:
+    // slot, color, enabled (v5 only)
+    QMap<int, PaletteColor> palSlots;
+    QList<PaletteColor> *palette;
+    QList<PaletteColor> newColors;
+    PaletteColor color;
+    void resetColor(bool isRedo);
 };
 
 class PaletteEditor : public QDialog
@@ -114,6 +133,10 @@ public:
 signals:
     void TitleChanged(QString title, QString tabFullPath);
 
+public slots:
+    void ChangeColor(int sel, PaletteColor newClr);
+    void ImportPal(QList<PaletteColor> newPal);
+
 protected:
     QSize sizeHint() const override { return QSize(500, 450); }
 
@@ -149,4 +172,11 @@ private:
     bool modified    = false;
     QString tabTitle = "Palette Editor";
     QString tabPath  = "";
+
+    QUndoStack *undoStack = nullptr;
+    QUndoView *undoView   = nullptr;
+    QAction *undoAction   = nullptr;
+    QAction *redoAction   = nullptr;
+
+    RSDKColorDialog *dlg = nullptr;
 };

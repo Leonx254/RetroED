@@ -9,10 +9,12 @@ Property::Property(QString name, unsigned char *value)
     m->setRange(p, 0, 255);
     type     = BYTE_MANAGER;
     valuePtr = value;
+    prevValue = *value;
 
     connect(m, &QtIntPropertyManager::valueChanged, this, [=](QtProperty *, int x) {
         *value = x;
         emit changed();
+        prevValue = x;
     });
 }
 
@@ -25,11 +27,13 @@ Property::Property(QString name, signed char *value)
     m->setRange(p, -128, 127);
     type     = SBYTE_MANAGER;
     valuePtr = value;
+    prevValue = *value;
 
-    // int v = *value;
+           // int v = *value;
     connect(m, &QtIntPropertyManager::valueChanged, this, [=](QtProperty *, int x) {
         *value = x;
         emit changed();
+        prevValue = x;
     });
 }
 
@@ -42,9 +46,11 @@ Property::Property(QString name, int *value)
     m->setRange(p, -2147483648, 2147483647);
     type     = INT_MANAGER;
     valuePtr = value;
+    prevValue = *value;
     connect(m, &QtIntPropertyManager::valueChanged, this, [=](QtProperty *, int x) {
         *value = x;
         emit changed();
+        prevValue = x;
     });
 }
 
@@ -57,9 +63,11 @@ Property::Property(QString name, uint *value)
     m->setRange(p, 0, 2147483647); // 4294967295
     type     = INT_MANAGER;
     valuePtr = value;
+    prevValue = *value;
     connect(m, &QtIntPropertyManager::valueChanged, this, [=](QtProperty *, int x) {
         *value = x;
         emit changed();
+        prevValue = x;
     });
 }
 
@@ -72,9 +80,11 @@ Property::Property(QString name, short *value)
     m->setRange(p, -32768, 32767);
     type     = SHORT_MANAGER;
     valuePtr = value;
+    prevValue = *value;
     connect(m, &QtIntPropertyManager::valueChanged, this, [=](QtProperty *, int x) {
         *value = x;
         emit changed();
+        prevValue = x;
     });
 }
 
@@ -87,9 +97,11 @@ Property::Property(QString name, ushort *value)
     m->setRange(p, 0, 65535);
     type     = USHORT_MANAGER;
     valuePtr = value;
+    prevValue = *value;
     connect(m, &QtIntPropertyManager::valueChanged, this, [=](QtProperty *, int x) {
         *value = x;
         emit changed();
+        prevValue = x;
     });
 }
 
@@ -103,9 +115,11 @@ Property::Property(QString name, float *value)
     m->setDecimals(p, 5);
     type     = FLOAT_MANAGER;
     valuePtr = value;
+    prevValue = *value;
     connect(m, &QtDoublePropertyManager::valueChanged, this, [=](QtProperty *, float x) {
         *value = x;
         emit changed();
+        prevValue = x;
     });
 }
 
@@ -117,9 +131,11 @@ Property::Property(QString name, bool *value)
     m->setValue(p, *value);
     type     = BOOL_MANAGER;
     valuePtr = value;
+    prevValue = *value;
     connect(m, &QtBoolPropertyManager::valueChanged, this, [=](QtProperty *, bool x) {
         *value = x;
         emit changed();
+        prevValue = x;
     });
 }
 
@@ -131,9 +147,11 @@ Property::Property(QString name, QString *value)
     m->setValue(p, *value);
     type     = STRING_MANAGER;
     valuePtr = value;
+    prevValue = *value;
     connect(m, &QtStringPropertyManager::valueChanged, this, [=](QtProperty *, QString x) {
         *value = x;
         emit changed();
+        prevValue = x;
     });
 }
 
@@ -145,14 +163,13 @@ Property::Property(QString name, QStringList names, void *value, byte type)
     m->setEnumNames(p, names);
     switch (type) {
         default: break;
-        case BYTE_MANAGER: m->setValue(p, *(byte *)value); break;
-        case SBYTE_MANAGER: m->setValue(p, *(sbyte *)value); break;
-        case SHORT_MANAGER: m->setValue(p, *(short *)value); break;
-        case USHORT_MANAGER: m->setValue(p, *(ushort *)value); break;
-        case INT_MANAGER: m->setValue(p, *(int *)value); break;
+        case BYTE_MANAGER: m->setValue(p, *(byte *)value); prevValue = *(byte *)value; break;
+        case SBYTE_MANAGER: m->setValue(p, *(sbyte *)value); prevValue = *(sbyte *)value; break;
+        case SHORT_MANAGER: m->setValue(p, *(short *)value); prevValue = *(short *)value; break;
+        case USHORT_MANAGER: m->setValue(p, *(ushort *)value); prevValue = *(ushort *)value; break;
+        case INT_MANAGER: m->setValue(p, *(int *)value); prevValue = *(int *)value; break;
         case UINT_MANAGER:
-            m->setValue(p, *(uint *)value);
-            break;
+            m->setValue(p, *(uint *)value); prevValue = *(uint *)value; break;
             // case BOOL_MANAGER: m->setValue(p, *(bool *)value); break;
             // case STRING_MANAGER: m->setValue(p, *(QString *)value); break;
             // case FLOAT_MANAGER: m->setValue(p, *(float *)value); break;
@@ -169,9 +186,7 @@ Property::Property(QString name, QStringList names, void *value, byte type)
             case SHORT_MANAGER: *reinterpret_cast<short *>(value) = x; break;
             case USHORT_MANAGER: *reinterpret_cast<ushort *>(value) = x; break;
             case INT_MANAGER: *reinterpret_cast<int *>(value) = x; break;
-            case UINT_MANAGER:
-                *reinterpret_cast<uint *>(value) = x;
-                break;
+            case UINT_MANAGER: *reinterpret_cast<uint *>(value) = x; break;
                 // case BOOL_MANAGER: *reinterpret_cast<bool *>(value) = x; break;
                 // case STRING_MANAGER: *reinterpret_cast<QString *>(value) = x; break;
                 // case FLOAT_MANAGER: *reinterpret_cast<float *>(value) = x; break;
@@ -179,6 +194,7 @@ Property::Property(QString name, QStringList names, void *value, byte type)
                 // break;
         }
         emit changed();
+        prevValue = x;
     });
 }
 
@@ -199,6 +215,7 @@ Property::Property(QString name, QList<PropertyValue> valueList, void *value, by
         default: break;
         case BYTE_MANAGER: {
             byte v = *(byte *)value;
+            prevValue = *(byte *)value;
             for (PropertyValue &val : valueList) {
                 if (val.value.toUInt() == v)
                     break;
@@ -208,6 +225,7 @@ Property::Property(QString name, QList<PropertyValue> valueList, void *value, by
         }
         case SBYTE_MANAGER: {
             sbyte v = *(sbyte *)value;
+            prevValue = *(sbyte *)value;
             for (PropertyValue &val : valueList) {
                 if (val.value.toInt() == v)
                     break;
@@ -217,6 +235,7 @@ Property::Property(QString name, QList<PropertyValue> valueList, void *value, by
         }
         case SHORT_MANAGER: {
             short v = *(short *)value;
+            prevValue = *(short *)value;
             for (PropertyValue &val : valueList) {
                 if (val.value.toInt() == v)
                     break;
@@ -226,6 +245,7 @@ Property::Property(QString name, QList<PropertyValue> valueList, void *value, by
         }
         case USHORT_MANAGER: {
             ushort v = *(ushort *)value;
+            prevValue = *(ushort *)value;
             for (PropertyValue &val : valueList) {
                 if (val.value.toUInt() == v)
                     break;
@@ -235,6 +255,7 @@ Property::Property(QString name, QList<PropertyValue> valueList, void *value, by
         }
         case INT_MANAGER: {
             int v = *(int *)value;
+            prevValue = *(int *)value;
             for (PropertyValue &val : valueList) {
                 if (val.value.toInt() == v)
                     break;
@@ -244,6 +265,7 @@ Property::Property(QString name, QList<PropertyValue> valueList, void *value, by
         }
         case UINT_MANAGER: {
             uint v = *(uint *)value;
+            prevValue = *(uint *)value;
             for (PropertyValue &val : valueList) {
                 if (val.value.toUInt() == v)
                     break;
@@ -265,23 +287,18 @@ Property::Property(QString name, QList<PropertyValue> valueList, void *value, by
             case BYTE_MANAGER: *reinterpret_cast<byte *>(value) = valueList[x].value.toUInt(); break;
             case SBYTE_MANAGER: *reinterpret_cast<sbyte *>(value) = valueList[x].value.toInt(); break;
             case SHORT_MANAGER: *reinterpret_cast<short *>(value) = valueList[x].value.toInt(); break;
-            case USHORT_MANAGER:
-                *reinterpret_cast<ushort *>(value) = valueList[x].value.toUInt();
-                break;
+            case USHORT_MANAGER: *reinterpret_cast<ushort *>(value) = valueList[x].value.toUInt(); break;
             case INT_MANAGER: *reinterpret_cast<int *>(value) = valueList[x].value.toInt(); break;
             case UINT_MANAGER: *reinterpret_cast<uint *>(value) = valueList[x].value.toUInt(); break;
             case BOOL_MANAGER: *reinterpret_cast<bool *>(value) = valueList[x].value.toBool(); break;
-            case STRING_MANAGER:
-                *reinterpret_cast<QString *>(value) = valueList[x].value.toString();
-                break;
-            case FLOAT_MANAGER:
-                *reinterpret_cast<float *>(value) = valueList[x].value.toFloat();
-                break;
+            case STRING_MANAGER: *reinterpret_cast<QString *>(value) = valueList[x].value.toString(); break;
+            case FLOAT_MANAGER: *reinterpret_cast<float *>(value) = valueList[x].value.toFloat(); break;
                 // case COLOR_MANAGER:
                 //    *reinterpret_cast<Color *>(value) = Color(valueList[x].value.toUInt());
                 //    break;
         }
         emit changed();
+        prevValue = x;
     });
 }
 
@@ -293,9 +310,11 @@ Property::Property(QString name, QColor *value)
     m->setValue(p, *value);
     type     = COLOR_MANAGER;
     valuePtr = value;
+    prevValue = *value;
     connect(m, &QtColorPropertyManager::valueChanged, this, [=](QtProperty *, QColor x) {
         *value = x;
         emit changed();
+        prevValue = x;
     });
 }
 
@@ -315,9 +334,11 @@ void Property::setValuePtr(void *newPtr)
             QtIntPropertyManager *m = static_cast<QtIntPropertyManager *>(typeManager);
             disconnect(m, &QtIntPropertyManager::valueChanged, nullptr, nullptr);
             m->setValue(p, *static_cast<unsigned char *>(valuePtr));
+            prevValue = *static_cast<unsigned char *>(valuePtr);
             connect(m, &QtIntPropertyManager::valueChanged, this, [=](QtProperty *, int x) {
                 *(static_cast<unsigned char *>(valuePtr)) = x;
                 emit changed();
+                prevValue = x;
             });
             break;
         }
@@ -325,9 +346,11 @@ void Property::setValuePtr(void *newPtr)
             QtIntPropertyManager *m = static_cast<QtIntPropertyManager *>(typeManager);
             disconnect(m, &QtIntPropertyManager::valueChanged, nullptr, nullptr);
             m->setValue(p, *static_cast<signed char *>(valuePtr));
+            prevValue = *static_cast<signed char *>(valuePtr);
             connect(m, &QtIntPropertyManager::valueChanged, this, [=](QtProperty *, int x) {
                 *(static_cast<signed char *>(valuePtr)) = x;
                 emit changed();
+                prevValue = x;
             });
             break;
         }
@@ -335,9 +358,11 @@ void Property::setValuePtr(void *newPtr)
             QtIntPropertyManager *m = static_cast<QtIntPropertyManager *>(typeManager);
             disconnect(m, &QtIntPropertyManager::valueChanged, nullptr, nullptr);
             m->setValue(p, *static_cast<int *>(valuePtr));
+            prevValue = *static_cast<int *>(valuePtr);
             connect(m, &QtIntPropertyManager::valueChanged, this, [=](QtProperty *, int x) {
                 *(static_cast<int *>(valuePtr)) = x;
                 emit changed();
+                prevValue = x;
             });
             break;
         }
@@ -345,9 +370,11 @@ void Property::setValuePtr(void *newPtr)
             QtIntPropertyManager *m = static_cast<QtIntPropertyManager *>(typeManager);
             disconnect(m, &QtIntPropertyManager::valueChanged, nullptr, nullptr);
             m->setValue(p, *static_cast<uint *>(valuePtr));
+            prevValue = *static_cast<uint *>(valuePtr);
             connect(m, &QtIntPropertyManager::valueChanged, this, [=](QtProperty *, int x) {
                 *(static_cast<uint *>(valuePtr)) = x;
                 emit changed();
+                prevValue = x;
             });
             break;
         }
@@ -355,9 +382,11 @@ void Property::setValuePtr(void *newPtr)
             QtIntPropertyManager *m = static_cast<QtIntPropertyManager *>(typeManager);
             disconnect(m, &QtIntPropertyManager::valueChanged, nullptr, nullptr);
             m->setValue(p, *static_cast<short *>(valuePtr));
+            prevValue = *static_cast<short *>(valuePtr);
             connect(m, &QtIntPropertyManager::valueChanged, this, [=](QtProperty *, int x) {
                 *(static_cast<short *>(valuePtr)) = x;
                 emit changed();
+                prevValue = x;
             });
             break;
         }
@@ -365,9 +394,11 @@ void Property::setValuePtr(void *newPtr)
             QtDoublePropertyManager *m = static_cast<QtDoublePropertyManager *>(typeManager);
             disconnect(m, &QtDoublePropertyManager::valueChanged, nullptr, nullptr);
             m->setValue(p, *static_cast<float *>(valuePtr));
+            prevValue = *static_cast<float *>(valuePtr);
             connect(m, &QtDoublePropertyManager::valueChanged, this, [=](QtProperty *, float x) {
                 *(static_cast<float *>(valuePtr)) = x;
                 emit changed();
+                prevValue = x;
             });
             break;
         }
@@ -375,9 +406,11 @@ void Property::setValuePtr(void *newPtr)
             QtIntPropertyManager *m = static_cast<QtIntPropertyManager *>(typeManager);
             disconnect(m, &QtIntPropertyManager::valueChanged, nullptr, nullptr);
             m->setValue(p, *static_cast<ushort *>(valuePtr));
+            prevValue = *static_cast<ushort *>(valuePtr);
             connect(m, &QtIntPropertyManager::valueChanged, this, [=](QtProperty *, int x) {
                 *(static_cast<ushort *>(valuePtr)) = x;
                 emit changed();
+                prevValue = x;
             });
             break;
         }
@@ -385,9 +418,11 @@ void Property::setValuePtr(void *newPtr)
             QtBoolPropertyManager *m = static_cast<QtBoolPropertyManager *>(typeManager);
             disconnect(m, &QtBoolPropertyManager::valueChanged, nullptr, nullptr);
             m->setValue(p, *static_cast<bool *>(valuePtr));
+            prevValue = *static_cast<bool *>(valuePtr);
             connect(m, &QtBoolPropertyManager::valueChanged, this, [=](QtProperty *, bool x) {
                 *static_cast<bool *>(valuePtr) = x;
                 emit changed();
+                prevValue = x;
             });
             break;
         }
@@ -395,19 +430,38 @@ void Property::setValuePtr(void *newPtr)
             QtStringPropertyManager *m = static_cast<QtStringPropertyManager *>(typeManager);
             disconnect(m, &QtStringPropertyManager::valueChanged, nullptr, nullptr);
             m->setValue(p, *static_cast<QString *>(valuePtr));
+            prevValue = *static_cast<QString *>(valuePtr);
             connect(m, &QtStringPropertyManager::valueChanged, this, [=](QtProperty *, QString x) {
                 *static_cast<QString *>(valuePtr) = x;
                 emit changed();
+                prevValue = x;
             });
             break;
         }
         case ENUM_MANAGER: {
             QtEnumPropertyManager *m = static_cast<QtEnumPropertyManager *>(typeManager);
             disconnect(m, &QtEnumPropertyManager::valueChanged, nullptr, nullptr);
-            m->setValue(p, *static_cast<unsigned char *>(valuePtr));
+            switch (this->varType){
+                default: break;
+                case BYTE_MANAGER: m->setValue(p, *static_cast<byte *>(valuePtr)); prevValue = *static_cast<byte *>(valuePtr); break;
+                case SBYTE_MANAGER: m->setValue(p, *static_cast<sbyte *>(valuePtr)); prevValue = *static_cast<sbyte *>(valuePtr); break;
+                case SHORT_MANAGER: m->setValue(p, *static_cast<short *>(valuePtr)); prevValue = *static_cast<short *>(valuePtr); break;
+                case USHORT_MANAGER: m->setValue(p, *static_cast<ushort *>(valuePtr)); prevValue = *static_cast<ushort *>(valuePtr); break;
+                case INT_MANAGER: m->setValue(p, *static_cast<int *>(valuePtr)); prevValue = *static_cast<int *>(valuePtr); break;
+                case UINT_MANAGER: m->setValue(p, *static_cast<uint *>(valuePtr)); prevValue = *static_cast<uint *>(valuePtr); break;
+            }
             connect(m, &QtEnumPropertyManager::valueChanged, this, [=](QtProperty *, int x) {
-                *static_cast<int *>(valuePtr) = x;
+                switch (this->varType) {
+                    default: break;
+                    case BYTE_MANAGER: *reinterpret_cast<byte *>(valuePtr) = x; break;
+                    case SBYTE_MANAGER: *reinterpret_cast<sbyte *>(valuePtr) = x; break;
+                    case SHORT_MANAGER: *reinterpret_cast<short *>(valuePtr) = x; break;
+                    case USHORT_MANAGER: *reinterpret_cast<ushort *>(valuePtr) = x; break;
+                    case INT_MANAGER: *reinterpret_cast<int *>(valuePtr) = x; break;
+                    case UINT_MANAGER: *reinterpret_cast<uint *>(valuePtr) = x; break;
+                }
                 emit changed();
+                prevValue = x;
             });
             break;
         }
@@ -415,9 +469,11 @@ void Property::setValuePtr(void *newPtr)
             QtColorPropertyManager *m = static_cast<QtColorPropertyManager *>(typeManager);
             disconnect(m, &QtColorPropertyManager::valueChanged, nullptr, nullptr);
             m->setValue(p, *static_cast<QColor *>(valuePtr));
+            prevValue = *static_cast<QColor *>(valuePtr);
             connect(m, &QtColorPropertyManager::valueChanged, this, [=](QtProperty *, QColor x) {
                 *static_cast<QColor *>(valuePtr) = x;
                 emit changed();
+                prevValue = x;
             });
             break;
         }
@@ -474,7 +530,15 @@ void Property::updateValue()
         }
         case ENUM_MANAGER: {
             QtEnumPropertyManager *m = static_cast<QtEnumPropertyManager *>(typeManager);
-            m->setValue(p, *static_cast<int *>(valuePtr));
+            switch (this->varType){
+                default: break;
+                case BYTE_MANAGER: m->setValue(p, *static_cast<byte *>(valuePtr)); prevValue = *static_cast<byte *>(valuePtr); break;
+                case SBYTE_MANAGER: m->setValue(p, *static_cast<sbyte *>(valuePtr)); prevValue = *static_cast<sbyte *>(valuePtr); break;
+                case SHORT_MANAGER: m->setValue(p, *static_cast<short *>(valuePtr)); prevValue = *static_cast<short *>(valuePtr); break;
+                case USHORT_MANAGER: m->setValue(p, *static_cast<ushort *>(valuePtr)); prevValue = *static_cast<ushort *>(valuePtr); break;
+                case INT_MANAGER: m->setValue(p, *static_cast<int *>(valuePtr)); prevValue = *static_cast<int *>(valuePtr); break;
+                case UINT_MANAGER: m->setValue(p, *static_cast<uint *>(valuePtr)); prevValue = *static_cast<uint *>(valuePtr); break;
+            }
             break;
         }
         case COLOR_MANAGER: {

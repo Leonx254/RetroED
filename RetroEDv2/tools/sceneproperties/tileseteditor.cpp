@@ -422,7 +422,7 @@ TilesetEditor::TilesetEditor(QList<QImage> &tiles, RSDKv5::TileConfig &tConf, QL
         ui->stampList->blockSignals(true);
         RSDKv5::Stamps::StampEntry newStamp;
         newStamp.name = "New Stamp";
-        newStamp.size = Vector2<int>(0,0);
+        newStamp.size = Vector2<ushort>(0,0);
         stamps.append(newStamp);
         ui->stampList->addItem("New Stamp");
         selectedStamp = ui->stampList->count() - 1;

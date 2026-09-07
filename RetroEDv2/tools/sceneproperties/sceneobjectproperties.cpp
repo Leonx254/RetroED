@@ -30,8 +30,9 @@ void SceneObjectProperties::setupUI(SceneEntity *entity, int entityID, Compilerv
                                     byte ver)
 {
     unsetUI();
-
-    SceneObject &object = entity->type < scnEditor->viewer->objects.count() ? scnEditor->viewer->objects[entity->type] : scnEditor->viewer->objects[0];
+    entityPtr = entity;
+    gameType = ver;
+    SceneObject &object = entityPtr->type < scnEditor->viewer->objects.count() ? scnEditor->viewer->objects[entityPtr->type] : scnEditor->viewer->objects[0];
 
     QList<PropertyValue> objNames;
     for (int o = 0; o < scnEditor->viewer->objects.count(); ++o) {
@@ -47,118 +48,44 @@ void SceneObjectProperties::setupUI(SceneEntity *entity, int entityID, Compilerv
     };
 
     QList<Property *> infoGroup = {
-        new Property("type", objNames, &entity->type, Property::BYTE_MANAGER),
-        new Property("slot", &entity->slotID),
-        new Property(object.variablesAliases[VAR_ALIAS_PROPVAL], &entity->propertyValue),
+        new Property("type", objNames, &entityPtr->type, Property::BYTE_MANAGER),
+        new Property("slot", &entityPtr->slotID),
+        new Property(object.variablesAliases[VAR_ALIAS_PROPVAL], &entityPtr->propertyValue),
     };
 
-    connect(infoGroup[0], &Property::changed, [this, infoGroup, entity, entityv2, entityv3, entityv4] {
-        byte type    = *(byte *)infoGroup[0]->valuePtr;
-        entity->type = type;
-        if (entityv2)
-            entityv2->type = type;
-        if (entityv3)
-            entityv3->type = type;
-        if (entityv4)
-            entityv4->type = type;
-        emit typeChanged(entity, type);
+    //infoGroup[1]->setRange(0, scnEditor->viewer->entities.count() - 1);
+
+    connect(infoGroup[0], &Property::changed, [this, infoGroup] {
+        emit entityChanged(entityPtr, infoGroup[0]->prevValue, 0);
     });
 
-    connect(infoGroup[1], &Property::changed, [this, entity, infoGroup] {
-        bool flag = false;
-        if (entity->slotID != entity->prevSlot) {
-            for (auto &entityRef : scnEditor->viewer->entities) {
-                if (entity->slotID == entityRef.slotID && entityRef.prevSlot != entity->prevSlot) {
-                    msgBox = new QMessageBox(
-                        QMessageBox::Information, "RetroED",
-                        QString("An entity already exists with slotID %1.").arg(entity->slotID),
-                        QMessageBox::NoButton, this);
-                    msgBox->open();
-                    entity->slotID         = entity->prevSlot;
-                    entity->gameEntitySlot = entity->prevSlot;
-                    flag           = true;
-
-                    infoGroup[1]->updateValue();
-                    break;
-                }
-            }
-            byte type = *(byte *)infoGroup[0]->valuePtr;
-            emit typeChanged(entity, type, true);
-        }
-        if (!flag)
-            entity->prevSlot = entity->slotID;
+    connect(infoGroup[1], &Property::changed, [this, infoGroup] {
+        if (entityPtr->slotID >= scnEditor->viewer->entities.count())
+            entityPtr->slotID = scnEditor->viewer->entities.count() - 1;
+        emit entityChanged(entityPtr, infoGroup[1]->prevValue, 1);
     });
 
-    connect(infoGroup[2], &Property::changed,
-            [this, infoGroup, entity, entityv2, entityv3, entityv4, ver, entityID] {
-                byte propVal = *(byte *)infoGroup[2]->valuePtr;
-
-                // we set propertyValue via this so the game can run logic on it
-                bool called = false;
-                callRSDKEdit(scnEditor, false, entityID, -1, propVal, &called);
-
-                if (called) {
-                    if (ver == ENGINE_v3)
-                        propVal = entityv3->propertyValue;
-                    if (ver == ENGINE_v4)
-                        propVal = entityv4->propertyValue;
-                }
-
-                entity->propertyValue = propVal;
-
-                if (entityv2)
-                    entityv2->propertyValue = propVal;
-                if (entityv3)
-                    entityv3->propertyValue = propVal;
-                if (entityv4)
-                    entityv4->propertyValue = propVal;
-
-                // in case that changed any custom vars
-                int startGroup = ver == ENGINE_v4 ? 3 : 2;
-                for (int i = startGroup; i < properties->propertySet.count(); ++i) {
-                    auto &var = entity->variables[i - startGroup];
-                    var.value_int32 =
-                        callRSDKEdit(scnEditor, true, entityID, i - startGroup, var.value_int32);
-
-                    switch (ver) {
-                        case ENGINE_v2: entity->propertyValue = entityv2->propertyValue; break;
-                        case ENGINE_v3: entity->propertyValue = entityv3->propertyValue; break;
-                        case ENGINE_v4: entity->propertyValue = entityv4->propertyValue; break;
-                    }
-
-                    properties->propertySet[i]->subProperties[0]->updateValue();
-                }
-
-                infoGroup[2]->updateValue(); // in case it changed
-            });
-
-    QList<Property *> posGroup = { new Property("x", &entity->pos.x),
-                                   new Property("y", &entity->pos.y) };
-
-    connect(posGroup[0], &Property::changed, [entity, entityv2, entityv3, entityv4] {
-        if (entityv2)
-            entityv2->XPos = entity->pos.x * 65536.0f;
-        if (entityv3)
-            entityv3->XPos = entity->pos.x * 65536.0f;
-        if (entityv4)
-            entityv4->XPos = entity->pos.x * 65536.0f;
+    connect(infoGroup[2], &Property::changed, [this, infoGroup] {
+        emit entityChanged(entityPtr, infoGroup[2]->prevValue, 2);
     });
 
-    connect(posGroup[1], &Property::changed, [entity, entityv2, entityv3, entityv4] {
-        if (entityv2)
-            entityv2->YPos = entity->pos.y * 65536.0f;
-        if (entityv3)
-            entityv3->YPos = entity->pos.y * 65536.0f;
-        if (entityv4)
-            entityv4->YPos = entity->pos.y * 65536.0f;
+    QList<Property *> posGroup = { new Property("x", &entityPtr->pos.x),
+                                   new Property("y", &entityPtr->pos.y) };
+
+    connect(posGroup[0], &Property::changed, [this, posGroup] {
+        emit entityChanged(entityPtr, posGroup[0]->prevValue, 3);
+    });
+
+    connect(posGroup[1], &Property::changed, [this, posGroup] {
+        emit entityChanged(entityPtr, posGroup[1]->prevValue, 4);
     });
 
 
     QList<PropertyValue> flipFlags     = { PropertyValue("No Flip", 0), PropertyValue("Flip X", 1),
-                                       PropertyValue("Flip Y", 2), PropertyValue("Flip XY", 3) };
+                                           PropertyValue("Flip Y", 2), PropertyValue("Flip XY", 3) };
     QList<PropertyValue> inkEffects    = { PropertyValue("No Ink", 0), PropertyValue("Blended", 1),
-                                        PropertyValue("Alpha", 2), PropertyValue("Additive", 3),
-                                        PropertyValue("Subtractive", 4) };
+                                           PropertyValue("Alpha", 2), PropertyValue("Additive", 3),
+                                           PropertyValue("Subtractive", 4) };
     QList<PropertyValue> priorityFlags = { PropertyValue("Bounds", 0),
                                            PropertyValue("Active", 1),
                                            PropertyValue("Always", 2),
@@ -169,38 +96,6 @@ void SceneObjectProperties::setupUI(SceneEntity *entity, int entityID, Compilerv
                                            PropertyValue("Active (Small)", 7) };
 
     QList<Property *> varGroup = {};
-
-    int *values[] = { &entityv4->state,
-                      NULL,
-                      &entityv4->scale,
-                      &entityv4->rotation,
-                      NULL,
-                      NULL,
-                      &entityv4->alpha,
-                      NULL,
-                      &entityv4->animationSpeed,
-                      NULL,
-                      NULL,
-                      &entityv4->values[0],
-                      &entityv4->values[1],
-                      &entityv4->values[2],
-                      &entityv4->values[3] };
-
-    byte *valuesB[] = { NULL,
-                        &entityv4->direction,
-                        NULL,
-                        NULL,
-                        (byte *)&entityv4->drawOrder,
-                        &entityv4->priority,
-                        NULL,
-                        &entityv4->animation,
-                        NULL,
-                        &entityv4->frame,
-                        &entityv4->inkEffect,
-                        NULL,
-                        NULL,
-                        NULL,
-                        NULL };
 
     Property *variable[0xF];
 
@@ -214,21 +109,21 @@ void SceneObjectProperties::setupUI(SceneEntity *entity, int entityID, Compilerv
         switch (v) {
             default: {
                 variable[v] =
-                    new Property(RSDKv4::objectVariableTypes[v], &entity->sceneVariables[v].value);
+                    new Property(RSDKv4::objectVariableTypes[v], &entityPtr->sceneVariables[v].value);
                 break;
             }
 
             case 1:
                 variable[v] = new Property(RSDKv4::objectVariableTypes[v], flipFlags,
-                                        &entity->sceneVariables[v].value, Property::BYTE_MANAGER);
+                                           &entityPtr->sceneVariables[v].value, Property::BYTE_MANAGER);
                 break;
             case 5:
                 variable[v] = new Property(RSDKv4::objectVariableTypes[v], priorityFlags,
-                                        &entity->sceneVariables[v].value, Property::BYTE_MANAGER);
+                                           &entityPtr->sceneVariables[v].value, Property::BYTE_MANAGER);
                 break;
             case 10:
                 variable[v] = new Property(RSDKv4::objectVariableTypes[v], inkEffects,
-                                        &entity->sceneVariables[v].value, Property::BYTE_MANAGER);
+                                           &entityPtr->sceneVariables[v].value, Property::BYTE_MANAGER);
                 break;
         }
 
@@ -236,30 +131,7 @@ void SceneObjectProperties::setupUI(SceneEntity *entity, int entityID, Compilerv
 
         disconnect(variable[v], nullptr, nullptr, nullptr);
         connect(variable[v], &Property::changed, [=] {
-            entity->sceneVariables[v].value = *(int *)variable[v]->valuePtr;
-            if (values[v])
-                *values[v] = entity->sceneVariables[v].value;
-            else
-                *valuesB[v] = entity->sceneVariables[v].value;
-
-            entity->sceneVariables[v].active = entity->sceneVariables[v].value != 0;
-
-            // in case that changed any custom vars
-            for (int i = 3; i < properties->propertySet.count(); ++i) {
-                auto &var = entity->variables[i - 3];
-                var.value_int32 =
-                callRSDKEdit(scnEditor, true, entityID, i - 3, var.value_int32);
-
-                entity->propertyValue = entityv4->propertyValue;
-                for(int v = 0; v < 0xF; v++){
-                    if (values[v])
-                        entity->sceneVariables[v].value = *values[v];
-                    else
-                        entity->sceneVariables[v].value = *valuesB[v];
-                }
-                properties->propertySet[i]->subProperties[0]->updateValue();
-            }
-            infoGroup[2]->updateValue(); // in case it changed
+            emit entityVarChanged(entityPtr, variable[v]->prevValue, v, false);
         });
 
         group->setSubProperties(valGroup);
@@ -267,15 +139,17 @@ void SceneObjectProperties::setupUI(SceneEntity *entity, int entityID, Compilerv
     }
 
     if (ver == ENGINE_v4) {
-        entityGroup.append(new Property("variables"));
+        entityGroup.append(new Property("object variables"));
         entityGroup[2]->setSubProperties(varGroup);
     }
 
-    for (int v = 0; v < entity->variables.count(); ++v) {
-        auto &var = entity->variables[v];
+    Property *userVars = new Property("editor variables");
 
-        SceneObject *object   = &scnEditor->viewer->objects[entity->type];
-        VariableInfo &varInfo = scnEditor->viewer->objects[entity->type].variables[v];
+    for (int v = 0; v < entityPtr->variables.count(); ++v) {
+        auto &var = entityPtr->variables[v];
+
+        SceneObject *object   = &scnEditor->viewer->objects[entityPtr->type];
+        VariableInfo &varInfo = scnEditor->viewer->objects[entityPtr->type].variables[v];
         Property *group       = new Property(varInfo.name);
         QList<Property *> valGroup;
 
@@ -289,7 +163,7 @@ void SceneObjectProperties::setupUI(SceneEntity *entity, int entityID, Compilerv
             }
         }
 
-        var.value_int32 = callRSDKEdit(scnEditor, true, entityID, v, 0);
+        var.value_int32 = callRSDKEdit(scnEditor, true, entityPtr->gameEntitySlot, v, 0);
 
         if (aliases.count()) {
             valGroup.append(new Property("enum", aliases, &var.value_int32, Property::INT_MANAGER));
@@ -300,82 +174,20 @@ void SceneObjectProperties::setupUI(SceneEntity *entity, int entityID, Compilerv
 
         Property *prop = valGroup.last();
         disconnect(prop, nullptr, nullptr, nullptr);
-        connect(prop, &Property::changed,
-                [this, prop, &var, v, infoGroup, variable, values, valuesB, entityGroup, entity, entityv2, entityv3, entityv4, ver] {
-                    var.value_int32 = *(int *)prop->valuePtr;
-
-                    if (entityv2)
-                        entityv2->propertyValue = entity->propertyValue;
-                    if (entityv3)
-                        entityv3->propertyValue = entity->propertyValue;
-                    if (entityv4){
-                        entityv4->propertyValue  = entity->propertyValue;
-                        for(int i = 0; i < 0xF; i++){
-                            if (values[i])
-                                *values[i]  = entity->sceneVariables[i].value;
-                            else
-                                *valuesB[i] = entity->sceneVariables[i].value;
-                        }
-
-                    }
-
-                    callRSDKEdit(scnEditor, false, entity->slotID, v, var.value_int32);
-
-                    switch (ver) {
-                        case ENGINE_v2: entity->propertyValue = entityv2->propertyValue; break;
-                        case ENGINE_v3: entity->propertyValue = entityv3->propertyValue; break;
-                        case ENGINE_v4:
-                            entity->propertyValue = entityv4->propertyValue;
-                            for(int v = 0; v < 0xF; v++){
-                                if (values[v])
-                                    entity->sceneVariables[v].value = *values[v];
-                                else
-                                    entity->sceneVariables[v].value = *valuesB[v];
-                            }
-                        break;
-                    }
-
-                    // in case that changed any custom vars
-                    int startGroup = ver == ENGINE_v4 ? 3 : 2;
-                    for (int i = startGroup; i < properties->propertySet.count(); ++i) {
-                        if (i == startGroup + v)
-                            continue; // dont update ourselves lol
-
-                        auto &var = entity->variables[i - startGroup];
-                        var.value_int32 =
-                            callRSDKEdit(scnEditor, true, entity->slotID, i - startGroup, var.value_int32);
-
-                        switch (ver) {
-                            case ENGINE_v2: entity->propertyValue = entityv2->propertyValue; break;
-                            case ENGINE_v3: entity->propertyValue = entityv3->propertyValue; break;
-                            case ENGINE_v4:
-                                entity->propertyValue = entityv4->propertyValue;
-                                for(int v = 0; v < 0xF; v++){
-                                    if (values[v])
-                                        entity->sceneVariables[v].value = *values[v];
-                                    else
-                                        entity->sceneVariables[v].value = *valuesB[v];
-                                }
-                            break;
-                        }
-
-                        properties->propertySet[i]->subProperties[0]->updateValue();
-                    }
-
-                    // Update propertyVal
-                    infoGroup[2]->updateValue();
-                    for (int i = 0; i < 0xF; ++i) {variable[i]->updateValue();}
-                });
+        connect(prop, &Property::changed,[this, prop, v, entity] {
+            emit entityVarChanged(entity, prop->prevValue, v, true);
+        });
 
         group->setSubProperties(valGroup);
-        entityGroup.append(group);
+        userVars->subProperties.append(group);
     }
 
     entityGroup[0]->setSubProperties(infoGroup);
     entityGroup[1]->setSubProperties(posGroup);
     properties->setPropertySet(entityGroup);
 
-    entityPtr = entity;
+    properties->addProperty(userVars->p);
+    properties->propertySet.append(userVars);
 }
 
 void SceneObjectProperties::unsetUI()
@@ -384,16 +196,130 @@ void SceneObjectProperties::unsetUI()
     entityPtr = nullptr;
 }
 
-void SceneObjectProperties::updateUI()
+void SceneObjectProperties::hideUI()
+{
+    properties->setHidden(true);
+    entityPtr = nullptr;
+}
+
+void SceneObjectProperties::updateUI(bool updateEnum)
 {
     if (!entityPtr)
         return;
+    int varGroup = gameType == ENGINE_v4 ? 3 : 2;
 
-    properties->propertySet[0]->subProperties[0]->updateValue();
-    properties->propertySet[0]->subProperties[1]->updateValue();
-    properties->propertySet[0]->subProperties[2]->updateValue();
-    properties->propertySet[1]->subProperties[0]->updateValue();
-    properties->propertySet[1]->subProperties[1]->updateValue();
+   //cheap way of removing the qcombobox generated by the enum-type properties
+   //prevents the visual of the temp combobox not matching the real value when using redo/undo
+    if (properties->currentItem() && updateEnum){
+        properties->currentItem()->property()->setEnabled(false);
+        properties->currentItem()->property()->setEnabled(true);
+    }
+
+    for (auto &prop : properties->propertySet){
+        for (auto &subProp : prop->subProperties){
+            subProp->blockSignals(true);
+            subProp->updateValue();
+            subProp->blockSignals(false);
+            for (auto &subPropVal : subProp->subProperties){
+                subPropVal->blockSignals(true);
+                subPropVal->updateValue();
+                subPropVal->blockSignals(false);
+            }
+        }
+    }
+    for (int v = 0; v < entityPtr->variables.count(); ++v) {
+        auto &var = entityPtr->variables[v];
+        // the custom enums for some reason detach the pointer if i just update the value?
+        properties->propertySet[varGroup]->subProperties[v]->subProperties[0]->blockSignals(true);
+        properties->propertySet[varGroup]->subProperties[v]->subProperties[0]->setValuePtr(&var.value_int32);
+        properties->propertySet[varGroup]->subProperties[v]->subProperties[0]->updateValue();
+        properties->propertySet[varGroup]->subProperties[v]->subProperties[0]->blockSignals(false);
+    }
+    properties->blockSignals(false);
+}
+
+void SceneObjectProperties::updateUI(SceneEntity *entity, bool updateEnum)
+{
+    if (!entity)
+        return;
+
+    //cheap way of removing the qcombobox generated by the enum-type properties
+    //prevents the visual of the temp combobox not matching the real value when using redo/undo
+    if (properties->currentItem() && updateEnum){
+        properties->currentItem()->property()->setEnabled(false);
+        properties->currentItem()->property()->setEnabled(true);
+    }
+
+    entityPtr = entity;
+
+    properties->blockSignals(true);
+    for (auto &prop : properties->propertySet){
+        for (auto &subProp : prop->subProperties){
+            subProp->blockSignals(true);
+            for (auto &subPropVal : subProp->subProperties){
+                subPropVal->blockSignals(true);
+            }
+        }
+    }
+    properties->propertySet[0]->subProperties[0]->setValuePtr(&entityPtr->type);
+    properties->propertySet[0]->subProperties[1]->setValuePtr(&entityPtr->slotID);
+    properties->propertySet[0]->subProperties[2]->setValuePtr(&entityPtr->propertyValue);
+    properties->propertySet[1]->subProperties[0]->setValuePtr(&entityPtr->pos.x);
+    properties->propertySet[1]->subProperties[1]->setValuePtr(&entityPtr->pos.y);
+    if (gameType == ENGINE_v4){
+        for (int i = 0; i < 0xF; i++)
+            properties->propertySet[2]->subProperties[i]->subProperties[0]->setValuePtr(&entityPtr->sceneVariables[i].value);
+    }
+
+    int startGroup = gameType == ENGINE_v4 ? 3 : 2;
+    for (int i = properties->propertySet[startGroup]->subProperties.count() - 1; i >= 0; i--)
+        properties->propertySet[startGroup]->removeSubProperty(properties->propertySet[startGroup]->subProperties[i]);
+
+    SceneObject *object   = &scnEditor->viewer->objects[entityPtr->type];
+    for (int v = 0; v < object->variables.count(); ++v) {
+        VariableInfo &varInfo = object->variables[v];
+        Property *group       = new Property(varInfo.name);
+        QList<Property *> valGroup;
+
+        QList<PropertyValue> aliases;
+        for (auto &value : varInfo.values) {
+            PropertyValue val;
+            val.name  = value.name;
+            val.value = value.value;
+            aliases.append(val);
+        }
+
+        auto &var = entityPtr->variables[v];
+        var.value_int32 = callRSDKEdit(scnEditor, true, entityPtr->slotID, v, 0);
+
+        if (aliases.count()) {
+            valGroup.append(new Property("enum", aliases, &var.value_int32, Property::INT_MANAGER));
+        }
+        else {
+            valGroup.append(new Property("int32", &var.value_int32));
+        }
+
+        Property *prop = valGroup.last();
+        disconnect(prop, nullptr, nullptr, nullptr);
+        connect(prop, &Property::changed,[this, prop, v] {
+            emit entityVarChanged(entityPtr, prop->prevValue, v, true);
+        });
+
+        group->setSubProperties(valGroup);
+        properties->propertySet[startGroup]->addSubProperty(group);
+    }
+
+    for (auto &prop : properties->propertySet){
+        for (auto &subProp : prop->subProperties){
+            subProp->blockSignals(false);
+            for (auto &subPropVal : subProp->subProperties){
+                subPropVal->blockSignals(false);
+            }
+        }
+    }
+    properties->updateDelegates();
+    properties->blockSignals(false);
+    properties->setHidden(false);
 }
 
 int SceneObjectProperties::callRSDKEdit(void *e, bool shouldReturnVal, int entityID, int variableID,

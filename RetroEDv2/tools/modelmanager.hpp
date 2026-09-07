@@ -21,13 +21,13 @@ public:
         FormatHelpers::Animation animFile;
     };
 
-    explicit ModelManager(QString filePath = "", bool usev5Format = true, QWidget *parent = nullptr);
+    explicit ModelManager(QString filePath = "", byte format = 0, QWidget *parent = nullptr);
     ~ModelManager();
 
     void SetupUI(bool initialSetup = true);
     ModelViewer *viewer = nullptr;
 
-    void LoadModel(QString filePath, bool usev5Format);
+    void LoadModel(QString filePath, byte format);
     bool SaveModel(bool forceSaveAs = false);
 
     inline void UpdateTitle(bool modified)

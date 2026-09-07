@@ -126,7 +126,7 @@
    <item row="4" column="1">
     <widget class="QDoubleSpinBox" name="scrollSpeed">
      <property name="decimals">
-      <number>10</number>
+      <number>6</number>
      </property>
      <property name="maximum">
       <double>128.000000000000000</double>
@@ -139,7 +139,7 @@
    <item row="3" column="1">
     <widget class="QDoubleSpinBox" name="parallaxFactor">
      <property name="decimals">
-      <number>10</number>
+      <number>6</number>
      </property>
      <property name="maximum">
       <double>128.000000000000000</double>

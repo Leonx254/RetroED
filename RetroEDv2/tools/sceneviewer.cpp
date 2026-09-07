@@ -359,13 +359,14 @@ void SceneViewer::updateScene()
                     .arg(Utils::getBit(selectedTile, 14) ? "BT" : "--")
                     .arg(Utils::getBit(selectedTile, 15) ? "BS" : "--");
 
-            status += QString(", Selected Layer: %8 (%9), Selected Object: %10")
+            status += QString(", Selected Layer: %8 (%9), Selected Object: %10, %11 %12")
                 .arg(selectedLayer)
                 .arg(selectedLayer >= 0 && selectedLayer < layers.count() ? layers[selectedLayer].name
                                                                           : "[None]")
                 .arg(selectedObject >= 0 && selectedObject < objects.count()
                          ? objects[selectedObject].name
-                         : "[None]");
+                         : "[None]")
+                .arg(selectedHScrollInfo).arg(selectedVScrollInfo);
         QString gameLinkState;
         if (gameType == ENGINE_v5){
             status += QString(", Selected Stamp: %1").arg((short)selectedStamp);
@@ -1085,7 +1086,7 @@ void SceneViewer::drawScene()
                     continue;
 
                 if (drawLayers[p].entries[o] == selectedEntity
-                    || selectedEntities.indexOf(drawLayers[p].entries[o]) >= 0)
+                    || entityMap.contains(drawLayers[p].entries[o]))
                     continue;
 
                 if (entity->type != 0) {
@@ -1166,41 +1167,41 @@ void SceneViewer::drawScene()
     int storedListPos        = sceneInfo.listPos;
 
     // Draw selected entity (multiple)
-    for (int s = 0; s < selectedEntities.count(); ++s) {
-        if (selectedEntities[s] >= 0 && selectedEntities[s] < entities.count()) {
-            selectedEntity    = selectedEntities[s];
-            sceneInfo.listPos = selectedEntities[s];
+    QMapIterator<int, Vector2<float>> entMap(entityMap);
+    while (entMap.hasNext()){
+        entMap.next();
+        selectedEntity    = entMap.key();
+        sceneInfo.listPos = entMap.key();
 
-            SceneEntity *entity = &entities[selectedEntity];
-            activeDrawEntity    = entity;
-            entity->box         = Rect<int>(0, 0, 0, 0);
+        SceneEntity *entity = &entities[selectedEntity];
+        activeDrawEntity    = entity;
+        entity->box         = Rect<int>(0, 0, 0, 0);
 
-            validDraw = false;
+        validDraw = false;
 
-            if (entity->type != 0) {
-                if (gameType == ENGINE_v5)
-                    emit callGameEventv5(objects[entity->type].name, EVENT_DRAW, entity);
-                else
-                    emit callGameEvent(EVENT_DRAW, selectedEntity);
-            }
+        if (entity->type != 0) {
+            if (gameType == ENGINE_v5)
+                emit callGameEventv5(objects[entity->type].name, EVENT_DRAW, entity);
+            else
+                emit callGameEvent(EVENT_DRAW, selectedEntity);
+        }
 
-            // Draw Default Object Sprite if invalid
-            if (!validDraw) {
-                entity->box = Rect<int>(-0x10, -0x10, 0x10, 0x10);
+        // Draw Default Object Sprite if invalid
+        if (!validDraw) {
+            entity->box = Rect<int>(-0x10, -0x10, 0x10, 0x10);
 
-                float xpos = entity->pos.x - (cameraPos.x);
-                float ypos = entity->pos.y - (cameraPos.y);
+            float xpos = entity->pos.x - (cameraPos.x);
+            float ypos = entity->pos.y - (cameraPos.y);
 
-                if (entity->type == 1 && gameType == ENGINE_v2){
-                    drawSpriteFlipped(xpos - (gfxSurface[4].width >> 1), ypos - (gfxSurface[4].height >> 1),
-                                      gfxSurface[4].width, gfxSurface[4].height, 0, 0, FLIP_NONE, INK_NONE,
-                                      0xFF, 4);
-                } else {
-                    // Draw Default Sprite
-                    drawSpriteFlipped(xpos - (gfxSurface[3].width >> 1), ypos - (gfxSurface[3].height >> 1),
-                                      gfxSurface[3].width, gfxSurface[3].height, 0, 0, FLIP_NONE, INK_NONE,
-                                      0xFF, 3);
-                }
+            if (entity->type == 1 && gameType == ENGINE_v2){
+                drawSpriteFlipped(xpos - (gfxSurface[4].width >> 1), ypos - (gfxSurface[4].height >> 1),
+                                  gfxSurface[4].width, gfxSurface[4].height, 0, 0, FLIP_NONE, INK_NONE,
+                                  0xFF, 4);
+            } else {
+                // Draw Default Sprite
+                drawSpriteFlipped(xpos - (gfxSurface[3].width >> 1), ypos - (gfxSurface[3].height >> 1),
+                                  gfxSurface[3].width, gfxSurface[3].height, 0, 0, FLIP_NONE, INK_NONE,
+                                  0xFF, 3);
             }
         }
     }
@@ -1470,9 +1471,20 @@ void SceneViewer::drawScene()
                         addPoly(tileX, tileY + 0x10, tileUVArray[point], tileUVArray[point + 3], 0, gfxSurface);
                         addPoly(tileX + 0x10, tileY + 0x10, tileUVArray[point + 2], tileUVArray[point + 3], 0,
                                 gfxSurface);
+
+                        // safety pass
+                        if (renderCount >= vertexListLimit - 8) {
+                            PlaceArgs args;
+                            args.texID = 0;
+
+                            renderCount -= count * 4;
+                            addRenderState(INK_BLEND, count * 4, count * 6, &args, 0xFF, &placeShader);
+                            renderCount += count * 4;
+                            renderRenderStates();
+                            count = 0;
+                        }
                     }
                 }
-
             }
 
             PlaceArgs args;
@@ -1481,6 +1493,7 @@ void SceneViewer::drawScene()
             renderCount -= count * 4;
             addRenderState(INK_BLEND, count * 4, count * 6, &args, 0xFF, &placeShader);
             renderCount += count * 4;
+            renderRenderStates();
             drawRect(xpos, ypos, stamp.size.x * tileSize, stamp.size.y * tileSize, Vector4<float>(0.0f, 1.0f, 0.0f, 1.0f),
                      true, 0x40, INK_ALPHA);
         }
@@ -1514,8 +1527,10 @@ void SceneViewer::drawScene()
                      Vector4<float>(0.0f, 0.0f, 1.0f, 1.f), false, 0x40, INK_ALPHA);
         }
 
-        for (auto &id : selectedEntities) {
-            SceneEntity &entity = entities[id];
+        QMapIterator<int, Vector2<float>> entMap(entityMap);
+        while (entMap.hasNext()){
+            entMap.next();
+            SceneEntity &entity = entities[entMap.key()];
 
             float left   = entity.pos.x + entity.box.x;
             float top    = entity.pos.y + entity.box.y;
@@ -1598,9 +1613,11 @@ void SceneViewer::unloadScene()
     selectedEntity      = -1;
     selectedLayer       = -1;
     selectedHScrollInfo = -1;
+    selectedVScrollInfo = -1;
     selectedObject      = -1;
     isSelecting         = false;
     selectedEntities.clear();
+    entityMap.clear();
 
     memset(gameEntityListv1, 0, ENTITY_COUNT_v5 * 2 * sizeof(GameEntityBasev1));
     memset(gameEntityListv2, 0, ENTITY_COUNT_v5 * 2 * sizeof(GameEntityBasev2));

@@ -2,6 +2,7 @@
 #include "ui_paletteeditor.h"
 
 #include "paletteeditor.hpp"
+#include "qgifimage.h"
 
 #include "paletteeditor/colourdialog.hpp"
 #include "paletteeditor/paletteimport.hpp"
@@ -13,6 +14,8 @@ PaletteEditor::PaletteEditor(QString path, byte type, bool external, QWidget *pa
 {
     ui->setupUi(this);
 
+    undoStack = new QUndoStack(this);
+    ui->undoView->setStack(undoStack);
     externalWindow = external;
     InitEditor();
 
@@ -21,12 +24,12 @@ PaletteEditor::PaletteEditor(QString path, byte type, bool external, QWidget *pa
         filePath = path;
     }
 }
-
 PaletteEditor::PaletteEditor(Palette *stagePal, QWidget *parent)
     : QDialog(parent), widget(new PaletteWidget(this)), ui(new Ui::PaletteEditor)
 {
     ui->setupUi(this);
 
+    undoStack = new QUndoStack(this);
     externalWindow = true;
     InitEditor();
     LoadScnEditorPal(stagePal);
@@ -36,10 +39,63 @@ PaletteEditor::PaletteEditor(RSDKv5::StageConfig *stagePal, QWidget *parent)
     : QDialog(parent), widget(new PaletteWidget(this)), ui(new Ui::PaletteEditor)
 {
     ui->setupUi(this);
-
+    undoStack = new QUndoStack(this);
     externalWindow = true;
     InitEditor();
     Loadv5ScnEditorPal(stagePal);
+}
+
+ChangeColorCommand::ChangeColorCommand(QList<PaletteColor> &palette, int palSlot, PaletteColor newClr, QUndoCommand *parent)
+{
+    this->palette = &palette;
+
+    palSlots.insert(palSlot, palette.at(palSlot));
+    newColors.append(newClr);
+    this->setText(QString("Slot: %1, Color: 0x%2%3%4 -> 0x%5%6%7").arg(palSlot)
+                      .arg(palette.at(palSlot).r,2,16,QLatin1Char('0')).arg(palette.at(palSlot).g,2,16,QLatin1Char('0')).arg(palette.at(palSlot).b,2,16,QLatin1Char('0'))
+                      .arg(newColors.at(0).r,2,16,QLatin1Char('0')).arg(newColors.at(0).g,2,16,QLatin1Char('0')).arg(newColors.at(0).b,2,16,QLatin1Char('0')));
+}
+
+ChangeColorCommand::ChangeColorCommand(QList<PaletteColor> &palette, QList<PaletteColor> newPal, QUndoCommand *parent)
+{
+    this->palette = &palette;
+
+    for (int c = 0; c < palette.size(); c++){
+        palSlots.insert(c, palette.at(c));
+        newColors.append(newPal.at(c));
+    }
+    this->setText(QString("Imported Palette"));
+}
+
+void ChangeColorCommand::undo(){
+    resetColor(false);
+}
+
+void ChangeColorCommand::redo()
+{
+    resetColor(true);
+}
+
+void ChangeColorCommand::resetColor(bool isRedo){
+    QMapIterator<int, PaletteColor> i(palSlots);
+    int c = 0;
+    while (i.hasNext()){
+        i.next();
+        PaletteColor clr;
+        if (isRedo)
+            clr = newColors.at(c);
+        else
+            clr = i.value();
+        palette->replace(i.key(), clr);
+        c++;
+    }
+}
+
+void PaletteEditor::ChangeColor(int sel, PaletteColor newClr){
+    undoStack->push(new ChangeColorCommand(palette, sel, newClr));
+}
+void PaletteEditor::ImportPal(QList<PaletteColor> newPal){
+    undoStack->push(new ChangeColorCommand(palette, newPal));
 }
 
 PaletteEditor::~PaletteEditor() {}
@@ -59,7 +115,7 @@ void PaletteEditor::InitEditor()
                               "RSDKv4 StageConfig Palettes (*StageConfig*.bin)",
                               "RSDKv3 StageConfig Palettes (*StageConfig*.bin)",
                               "RSDKv2 StageConfig Palettes (*StageConfig*.bin)",
-                              "RSDKv1 StageConfig Palettes (*Zone*.zcf)" };
+                              "RSDKv1 StageConfig Palettes (*Zone*.zcf)"};
         QList<QString> typesList = {
             "Adobe Color Table Palettes (*.act)",
             "rev02 (plus) RSDKv5 GameConfig Palettes (*GameConfig*.bin)",
@@ -78,7 +134,7 @@ void PaletteEditor::InitEditor()
                                    tr(types.join(";;").toStdString().c_str()));
             filedialog.setAcceptMode(QFileDialog::AcceptOpen);
             if (filedialog.exec() == QDialog::Accepted) {
-                int type         = typesList.indexOf(filedialog.selectedNameFilter());
+                int type         = types.indexOf(filedialog.selectedNameFilter());
                 QString fileName = filedialog.selectedFiles()[0];
 
                 // disconnect(ui->importPal, nullptr, nullptr, nullptr);
@@ -131,6 +187,12 @@ void PaletteEditor::InitEditor()
         connect(ui->palRows, QOverload<int>::of(&QSpinBox::valueChanged), [this](int r){ UpdatePaletteRows(r * 0x10); });
 
         ui->widgetLayout->addWidget(widget, 1);
+        connect(widget, &PaletteWidget::changeColor, [this](int s, PaletteColor c){
+            ChangeColor(s, c);
+            widget->repaint();
+            UpdateTitle(true);
+        });
+        connect(ui->undoView, &QUndoView::pressed, [=]{ widget->repaint(); });
     }
 
     firstInit = false;
@@ -276,7 +338,8 @@ void PaletteEditor::Loadv5ScnEditorPal(RSDKv5::StageConfig *stagePal)
 
 void PaletteEditor::ImportPalette(QString path, byte type)
 {
-    QList<PaletteColor> backup = palette;
+    PrintLog(QString("ImportPalette %1 %2").arg(path).arg(type));
+    QList<PaletteColor> newPalette = palette;
     switch (type) {
         case PALTYPE_ACT: { //.act
             QList<PaletteColor> pal;
@@ -287,11 +350,9 @@ void PaletteEditor::ImportPalette(QString path, byte type)
                 clr.read(reader);
                 pal.append(clr);
             }
-            importFile = new PaletteImport(pal, palette, false);
-            if (importFile->exec() != QDialog::Accepted) {
-                palette = backup;
-            } else {
-                DoAction("Imported Palette", !externalWindow);
+            importFile = new PaletteImport(pal, newPalette, false);
+            if (importFile->exec() == QDialog::Accepted) {
+                ImportPal(newPalette);
             };
             importFile = nullptr;
             break;
@@ -318,11 +379,9 @@ void PaletteEditor::ImportPalette(QString path, byte type)
             for (auto& c : img.colorTable())
                 pal.append(PaletteColor(c));
 
-            importFile = new PaletteImport(pal, palette, false);
-            if (importFile->exec() != QDialog::Accepted) {
-                palette = backup;
-            } else {
-                DoAction("Imported Palette", !externalWindow);
+            importFile = new PaletteImport(pal, newPalette, false);
+            if (importFile->exec() == QDialog::Accepted) {
+                ImportPal(newPalette);
             };
             importFile = nullptr;
             break;
@@ -352,7 +411,7 @@ void PaletteEditor::ImportPalette(QString path, byte type)
                 }
             }
 
-            importFile = new PaletteImport(pal, palette, true);
+            importFile = new PaletteImport(pal, newPalette, true);
             for (int b = 0; b < 8; b++){
                 if (type == PALTYPE_STAGECONFIGv5){
                     importPal = &importSC.palettes[b];
@@ -363,11 +422,9 @@ void PaletteEditor::ImportPalette(QString path, byte type)
                 importFile->banks[b] = *importPal;
             }
 
-            if (importFile->exec() != QDialog::Accepted) {
-                palette = backup;
-            } else {
-                DoAction("Imported Palette", !externalWindow);
-            };
+            if (importFile->exec() == QDialog::Accepted) {
+                ImportPal(newPalette);
+			}
             importFile = nullptr;
             break;
         }
@@ -417,16 +474,17 @@ void PaletteEditor::ImportPalette(QString path, byte type)
             for (auto &c : configPal->colors) {
                 pal.append(PaletteColor(c.r, c.g, c.b));
             }
-            importFile = new PaletteImport(pal, palette, false);
-            if (importFile->exec() != QDialog::Accepted) {
-                palette = backup;
-            } else {
-                DoAction("Imported Palette", !externalWindow);
+            importFile = new PaletteImport(pal, newPalette, false);
+            
+            if (importFile->exec() == QDialog::Accepted) {
+                ImportPal(newPalette);
             };
             importFile = nullptr;
             break;
         }
     }
+    UpdateTitle(true);
+    ui->widgetLayout->update();
 }
 
 void PaletteEditor::SwitchBank(int id)
@@ -489,7 +547,7 @@ void PaletteEditor::UpdatePaletteRows(int rows)
     }
     update();
 }
-
+/*
 void PaletteEditor::UndoAction()
 {
     if (actionIndex > 0) {
@@ -506,6 +564,7 @@ void PaletteEditor::RedoAction()
         ResetAction();
     }
 }
+*/
 void PaletteEditor::ResetAction()
 {
 #if RE_USE_UNSTABLE
@@ -586,14 +645,12 @@ void PaletteWidget::mouseDoubleClickEvent(QMouseEvent *)
     PaletteColor prev    = palette->at(selection);
     RSDKColorDialog *dlg = new RSDKColorDialog(palette->at(selection));
     if (dlg->exec() == QDialog::Accepted) {
-        PaletteColor clr;
-        clr.r = dlg->color().r;
-        clr.g = dlg->color().g;
-        clr.b = dlg->color().b;
-        palette->replace(selection, clr);
-
-        if (prev.r != clr.r || prev.g != clr.g || prev.b != clr.b)
-            editor->DoAction("Changed color", !editor->externalWindow);
+        PaletteColor dlgCol;
+        dlgCol.r = dlg->color().r;
+        dlgCol.g = dlg->color().g;
+        dlgCol.b = dlg->color().b;
+        emit changeColor(selection, dlgCol);
+        update();
     }
     delete dlg;
 
@@ -627,20 +684,12 @@ void PaletteWidget::mouseMoveEvent(QMouseEvent *event)
     PaletteEditor *editor = (PaletteEditor *)parent();
     if (editor->palType == PALTYPE_GAMECONFIGv5 || editor->palType == PALTYPE_GAMECONFIGv5_rev01) {
         if (pressed) {
-            bool prev = editor->gameConfigv5.palettes[editor->bankID].activeRows[y];
             editor->gameConfigv5.palettes[editor->bankID].activeRows[y] = enabling;
-
-            if (prev != enabling)
-                editor->DoAction("Changed row active", !editor->externalWindow);
         }
     }
     else if (editor->palType == PALTYPE_STAGECONFIGv5) {
         if (pressed) {
-            bool prev = editor->stageConfigv5.palettes[editor->bankID].activeRows[y];
             editor->stageConfigv5.palettes[editor->bankID].activeRows[y] = enabling;
-
-            if (prev != enabling)
-                editor->DoAction("Changed row active", !editor->externalWindow);
         }
     }
 
@@ -733,7 +782,9 @@ bool PaletteEditor::event(QEvent *event)
         tabPath  = "";
         filePath = "";
 
-        ClearActions();
+        undoStack->clear();
+        ui->undoView->setStack(undoStack);
+        actionIndex = 0;
         return true;
     }
 
@@ -753,7 +804,9 @@ bool PaletteEditor::event(QEvent *event)
             SetStatus("Loaded palette from " + tabTitle);
 
             appConfig.addRecentFile(palType, TOOL_PALETTEDITOR, filePath, QList<QString>{});
-            ClearActions();
+            undoStack->clear();
+            ui->undoView->setStack(undoStack);
+            actionIndex = 0;
             return true;
         }
     }
@@ -779,7 +832,8 @@ bool PaletteEditor::event(QEvent *event)
                 SavePalette(filepath);
                 tabPath = filepath;
 
-                ClearActions();
+                actionIndex = undoStack->index();
+                UpdateTitle(false);
                 appConfig.addRecentFile(palType, TOOL_PALETTEDITOR, filepath, QList<QString>{});
                 return true;
             }
@@ -789,7 +843,8 @@ bool PaletteEditor::event(QEvent *event)
             SavePalette(filepath);
             tabPath = filepath;
 
-            ClearActions();
+            actionIndex = undoStack->index();
+            UpdateTitle(false);
             appConfig.addRecentFile(palType, TOOL_PALETTEDITOR, filepath, QList<QString>{});
             return true;
         }
@@ -825,18 +880,27 @@ bool PaletteEditor::event(QEvent *event)
             SavePalette(filepath);
             tabPath = filepath;
 
-            ClearActions();
+            actionIndex = undoStack->index();
+            UpdateTitle(false);
             appConfig.addRecentFile(palType, TOOL_PALETTEDITOR, filepath, QList<QString>{});
             return true;
         }
     }
 
     if (event->type() == (QEvent::Type)RE_EVENT_UNDO) {
-        UndoAction();
+        if (undoStack->index() != 0) {
+            undoStack->setIndex(undoStack->index() - 1);
+            widget->repaint();
+            UpdateTitle(actionIndex != undoStack->index());
+        }
         return true;
     }
     if (event->type() == (QEvent::Type)RE_EVENT_REDO) {
-        RedoAction();
+        if (undoStack->index() != undoStack->count()) {
+            undoStack->setIndex(undoStack->index() + 1);
+            widget->repaint();
+            UpdateTitle(actionIndex != undoStack->index());
+        }
         return true;
     }
 
@@ -896,7 +960,7 @@ void PaletteEditor::SavePalette(QString filepath)
     SetStatus("Saving palette...", true);
     switch (palType) {
         case PALTYPE_ACT: {
-            float total = palette.count();
+            int total = palette.count();
 
             Writer writer(filepath);
             for (auto &c : palette) {

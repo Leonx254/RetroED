@@ -7,8 +7,9 @@
 
 #include <RSDKv4/modelv4.hpp>
 #include <RSDKv5/modelv5.hpp>
+#include <RSDKv3D/modelv3D.hpp>
 
-ModelManager::ModelManager(QString filePath, bool usev5Format, QWidget *parent)
+ModelManager::ModelManager(QString filePath, byte format, QWidget *parent)
     : QWidget(parent), ui(new Ui::ModelManager)
 {
     ui->setupUi(this);
@@ -324,7 +325,7 @@ ModelManager::ModelManager(QString filePath, bool usev5Format, QWidget *parent)
     }
 
     if (QFile::exists(filePath))
-        LoadModel(filePath, usev5Format);
+        LoadModel(filePath, format);
 }
 
 ModelManager::~ModelManager()
@@ -358,13 +359,13 @@ bool ModelManager::event(QEvent *event)
             return true;
 
         case RE_EVENT_OPEN: {
-            QString filters = { "RSDKv5 Model Files (*.bin);;RSDKv4 Model Files (*.bin)" };
+            QString filters = { "RSDKv5 Model Files (*.bin);;RSDKv4 Model Files (*.bin);;RSDKv3D Model File (*.tmf)" };
 
             QFileDialog filedialog(this, tr("Open RSDK Model"), "", tr(filters.toStdString().c_str()));
             filedialog.setAcceptMode(QFileDialog::AcceptOpen);
             if (filedialog.exec() == QDialog::Accepted) {
-                LoadModel(filedialog.selectedFiles()[0],
-                          filedialog.selectedNameFilter() == "RSDKv5 Model Files (*.bin)");
+                int filter = filters.indexOf(filedialog.selectedNameFilter());
+                LoadModel(filedialog.selectedFiles()[0], filter);
                 ClearActions();
                 return true;
             }
@@ -559,23 +560,27 @@ void ModelManager::StopAnim()
 void ModelManager::ProcessAnimation()
 {
     // bool changed = false;
+    if (viewer->modelFormat != 2){
+        if (currentFrame < viewer->model.frames.count()) {
+            viewer->animTimer += viewer->animSpeed;
+            while (viewer->animTimer > 1.0) {
+                viewer->animTimer -= 1.0;
+                ++currentFrame;
 
-    if (currentFrame < viewer->model.frames.count()) {
-        viewer->animTimer += viewer->animSpeed;
-        while (viewer->animTimer > 1.0) {
-            viewer->animTimer -= 1.0;
-            ++currentFrame;
+                if (currentFrame >= viewer->model.frames.count())
+                    currentFrame = viewer->loopIndex;
 
-            if (currentFrame >= viewer->model.frames.count())
-                currentFrame = viewer->loopIndex;
-
-            // changed = true;
+                // changed = true;
+            }
         }
+    } else {
+        viewer->setAnimationFrame();
     }
 
     viewer->setFrame(currentFrame);
     viewer->repaint();
 }
+
 
 void ModelManager::SetupUI(bool initialSetup)
 {
@@ -595,8 +600,17 @@ void ModelManager::SetupUI(bool initialSetup)
 
     ui->frameList->clear();
 
-    for (int f = 0; f < viewer->model.frames.count(); ++f)
-        ui->frameList->addItem("Frame " + QString::number(f));
+    if (viewer->modelFormat == 2){
+        for (int f = 0; f < 10; ++f){
+            if (viewer->S3DAni.states[f].name.isEmpty() == false)
+                ui->frameList->addItem(viewer->S3DAni.states[f].name);
+            else
+                ui->frameList->addItem("Animation " + QString::number(f));
+        }
+    } else {
+        for (int f = 0; f < viewer->model.frames.count(); ++f)
+            ui->frameList->addItem("Frame " + QString::number(f));
+    }
 
     if (initialSetup) {
         ui->animSpeed->blockSignals(true);
@@ -639,32 +653,47 @@ void ModelManager::SetupUI(bool initialSetup)
     ui->frameList->blockSignals(false);
 }
 
-void ModelManager::LoadModel(QString filePath, bool usev5Format)
+void ModelManager::LoadModel(QString filePath, byte format)
 {
     SetStatus("Loading model...", true);
 
-    if (usev5Format) {
-        RSDKv5::Model mdl;
-        if (filePath != "")
-            mdl.read(filePath);
-        viewer->setModel(mdl);
-        tabTitle            = Utils::getFilenameAndFolder(mdl.filePath);
-        viewer->modelFormat = 0;
-    }
-    else {
-        RSDKv4::Model mdl;
-        if (filePath != "")
-            mdl.read(filePath);
-        viewer->setModel(mdl);
-        tabTitle            = Utils::getFilenameAndFolder(mdl.filePath);
-        viewer->modelFormat = 1;
+    switch (format){
+        case 0:{
+            RSDKv5::Model mdl;
+            if (filePath != "")
+                mdl.read(filePath);
+            viewer->setModel(mdl);
+            tabTitle            = Utils::getFilenameAndFolder(mdl.filePath);
+            viewer->modelFormat = 0;
+
+        }
+        case 1:{
+            RSDKv4::Model mdl;
+            if (filePath != "")
+                mdl.read(filePath);
+            viewer->setModel(mdl);
+            tabTitle            = Utils::getFilenameAndFolder(mdl.filePath);
+            viewer->modelFormat = 1;
+
+        }
+        case 2:{
+            if (filePath != "")
+                viewer->S3Dmodel.read(filePath);
+            QString path = filePath;
+            QString png = path.replace("." + QFileInfo(path).suffix(), ".png");
+            viewer->setModel(viewer->S3Dmodel.mdl, png);
+            QString ani = path.replace("." + QFileInfo(path).suffix(), ".ani");
+            viewer->getAnimations(&viewer->S3DAni, ani);
+            tabTitle            = Utils::getFilenameAndFolder(viewer->S3Dmodel.filePath);
+            viewer->modelFormat = 2;
+        }
     }
     tabPath                = filePath;
     viewer->model.filePath = filePath;
     UpdateTitle(false);
     SetStatus("Loaded model " + tabTitle);
 
-    appConfig.addRecentFile(usev5Format ? ENGINE_v5 : ENGINE_v4, TOOL_MODELMANAGER, filePath,
+    appConfig.addRecentFile(format, TOOL_MODELMANAGER, filePath,
                             QList<QString>{});
     SetupUI();
 }

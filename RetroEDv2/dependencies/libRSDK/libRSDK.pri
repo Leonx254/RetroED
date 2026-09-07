@@ -48,6 +48,7 @@ HEADERS +=    \
     $$PWD/formats/RSDKv3/configv3.hpp \
     $$PWD/formats/RSDKv3/savefilev3.hpp \
     $$PWD/formats/RSDKv3/videov3.hpp \
+    $$PWD/formats/RSDKv3D/modelv3D.hpp \
     $$PWD/formats/RSDKv4/animationv4.hpp \
     $$PWD/formats/RSDKv4/backgroundv4.hpp \
     $$PWD/formats/RSDKv4/bytecodev4.hpp \
@@ -115,6 +116,7 @@ SOURCES +=  \
     $$PWD/formats/RSDKv3/scenev3.cpp \
     $$PWD/formats/RSDKv3/stageconfigv3.cpp \
     $$PWD/formats/RSDKv3/videov3.cpp \
+    $$PWD/formats/RSDKv3D/modelv3D.cpp \
     $$PWD/formats/RSDKv4/animationv4.cpp \
     $$PWD/formats/RSDKv4/backgroundv4.cpp \
     $$PWD/formats/RSDKv4/bytecodev4.cpp \

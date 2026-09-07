@@ -27,11 +27,195 @@ namespace Ui
 class SceneEditor;
 }
 
+class ChunkMap
+{
+public:
+    ChunkMap() {}
+    ChunkMap(const ChunkMap &other){
+        pos = other.pos;
+        id = other.id;
+    };
+    ChunkMap &operator=(const ChunkMap &other){
+        ChunkMap *ret = new ChunkMap();
+        ret->pos = other.pos;
+        ret->id = other.id;
+        return *ret;
+    };
+    Vector2<int> pos;
+    int id;
+};
+
+inline bool operator==(const ChunkMap &c1, const ChunkMap &c2)
+{
+    return c1.id == c2.id && c1.pos == c2.pos;
+}
+
+inline uint qHash(const ChunkMap &key, uint seed)
+{
+    return qHash(((key.pos.x + key.pos.y) * 0.5) * (key.pos.x + key.pos.y + 1) + key.pos.y, seed) ^ key.id;
+}
+
 class SceneEditor : public QWidget
 {
     Q_OBJECT
 
 public:
+
+    class EntityCommand : public QUndoCommand
+    {
+    public:
+        explicit EntityCommand(SceneEntity ent, QVariant prevValue, int varID, SceneEditor *parent = nullptr);
+        explicit EntityCommand(SceneEntity ent, QVariant prevValue, int varPos, bool isCustomVar, SceneEditor *parent = nullptr);
+        void undo() override { ResetEntity(false); };
+        void redo() override { ResetEntity(true); };
+        void ResetEntity(bool isRedo);
+
+    private:
+        SceneEntity prevEnt;
+        SceneEntity curEnt;
+
+        Compilerv2::Entity prevEntv2;
+        Compilerv3::Entity prevEntv3;
+        Compilerv4::Entity prevEntv4;
+
+        Compilerv2::Entity curEntv2;
+        Compilerv3::Entity curEntv3;
+        Compilerv4::Entity curEntv4;
+
+        int swapSlot = -1;
+        int slotID;
+        SceneEditor *scnEditor = nullptr;
+    };
+
+    class EntityMoveCommand : public QUndoCommand
+    {
+    public:
+        explicit EntityMoveCommand(QList<int> entityIDs, QList<Vector2<float>> curPos, QList<Vector2<float>> prevPos, SceneEditor *parent = nullptr);
+        void undo() override { MoveEntity(false); };
+        void redo() override { MoveEntity(true); };
+        void MoveEntity(bool isRedo);
+
+    private:
+        QList<int> IDs;
+        QList<Vector2<float>> curPos;
+        QList<Vector2<float>> prevPos;
+        SceneEditor *scnEditor = nullptr;
+    };
+
+    class EntityAddRemoveCommand : public QUndoCommand
+    {
+    public:
+        explicit EntityAddRemoveCommand(int id, SceneEditor *parent = nullptr);
+        explicit EntityAddRemoveCommand(QList<int> IDs, SceneEditor *parent = nullptr);
+        explicit EntityAddRemoveCommand(SceneEntity entity, SceneEditor *parent = nullptr);
+        explicit EntityAddRemoveCommand(QList<SceneEntity> entities, SceneEditor *parent = nullptr);
+        void AddRemoveEntity(bool isRedo);
+        void AddEntity(SceneEntity ent, int slotID);
+        void RemoveEntity(int id);
+        void undo() override { AddRemoveEntity(false); };
+        void redo() override { AddRemoveEntity(true); };
+
+
+    private:
+        QList<int> entIDs;
+        QList<SceneEntity> entities;
+        QList<Compilerv2::Entity> entitiesv2;
+        QList<Compilerv3::Entity> entitiesv3;
+        QList<Compilerv4::Entity> entitiesv4;
+        bool isNewEntity = false;
+        SceneEditor *scnEditor = nullptr;
+    };
+
+    class LayerChangeCommand : public QUndoCommand
+    {
+    public:
+        enum { Id = 3 };
+        explicit LayerChangeCommand(Vector2<int> shift, bool keepDimensions, bool shiftEnt, SceneEditor *parent = nullptr);
+        explicit LayerChangeCommand(Vector2<int> shift, SceneEditor *parent = nullptr);
+        explicit LayerChangeCommand(float val, byte type, SceneEditor *parent = nullptr);
+        explicit LayerChangeCommand(byte val, SceneEditor *parent = nullptr);
+        explicit LayerChangeCommand(QSet<ChunkMap> map, int layer, SceneEditor *parent = nullptr);
+
+        bool mergeWith(const QUndoCommand *command) override{
+            const LayerChangeCommand *cmd = static_cast<const LayerChangeCommand *>(command);
+            float commandParallax = cmd->shiftParallaxVal;
+            float commandScroll   = cmd->shiftScrollVal;
+            if (id() != cmd->id())
+                return false;
+            bool merge = false;
+            if (commandParallax == 1 || commandParallax == -1)
+                merge = true;
+            else if (commandScroll == 1 || commandScroll == -1)
+                merge = true;
+
+            if (merge){
+                if (commandParallax != shiftParallaxVal || commandScroll != shiftScrollVal){
+                    shiftParallaxVal += commandParallax;
+                    shiftScrollVal   += commandScroll;
+                }
+                return true;
+            }
+
+            return false;
+        };
+        int id() const override { return Id; }
+        void ResizeLayer(bool isRedo);
+        void ShiftLayer(bool isRedo);
+        void ChangeLayerSettings(bool isRedo);
+        void ChangeLayout(bool isRedo);
+        void undo() override {
+            if (this->text() == "Modified Layout") ChangeLayout(false);
+            if (this->text() == "Resized Layer") ResizeLayer(false);
+            if (this->text() == "Shifted Layer") ShiftLayer(false);
+            if (this->text() == "Changed Layer Parallax" || this->text() == "Changed Layer Scroll Speed" || this->text() == "Changed Layer Type")
+                ChangeLayerSettings(false);
+        };
+        void redo() override {
+            if (this->text() == "Modified Layout") ChangeLayout(true);
+            if (this->text() == "Resized Layer") ResizeLayer(true);
+            if (this->text() == "Shifted Layer") ShiftLayer(true);
+            if (this->text() == "Changed Layer Parallax" || this->text() == "Changed Layer Scroll Speed" || this->text() == "Changed Layer Type")
+                ChangeLayerSettings(true);
+        };
+
+    private:
+        float shiftParallaxVal = 0.0f;
+        float shiftScrollVal = 0.0f;
+        byte prevLyrType;
+        byte curLyrType;
+
+        QSet<ChunkMap> prevLayout;
+        QSet<ChunkMap> curLayout;
+        int count;
+        byte layer;
+        Vector2<int> lyrShift;
+        bool keepDimensions;
+        bool shiftEntities;
+        byte commandType;
+        SceneEditor *scnEditor = nullptr;
+    };
+    class ParallaxCommand : public QUndoCommand
+    {
+    public:
+        explicit ParallaxCommand(int entry, bool isVert, bool remove, SceneEditor *parent = nullptr);
+        explicit ParallaxCommand(int entry, bool isVert, int instRow, bool remove, SceneEditor *parent = nullptr);
+        explicit ParallaxCommand(int entry, bool isVert, float value, byte option, SceneEditor *parent = nullptr);
+        explicit ParallaxCommand(int entry, bool isVert, int instRow, int value, byte option, SceneEditor *parent = nullptr);
+
+        void ChangeParallaxInstance(bool isRedo);
+        void ChangeParallaxEntry(bool isRedo);
+        void undo() override { ChangeParallaxEntry(false); };
+        void redo() override { ChangeParallaxEntry(true); };
+    private:
+        SceneHelpers::TileLayer::ScrollIndexInfo prevEntry;
+        SceneHelpers::TileLayer::ScrollIndexInfo curEntry;
+        int entryRow = 0;
+        bool isNewEntry = false;
+        bool vEntry     = false;
+        bool instEdit   = false;
+        SceneEditor *scnEditor = nullptr;
+    };
+
     class ActionState
     {
     public:
@@ -138,7 +322,9 @@ public:
     bool scriptError       = false;
 
     // Event Handlers
-    void SetChunk(float x, float y);
+    QSet<ChunkMap> chunkLayoutStore;
+    QList<Vector2<float>> entityMoveStore;
+    void SetChunk(float x, float y, QSet<ChunkMap> &prevLayout);
     void ResetTools(byte tool);
 
     bool HandleKeyPress(QKeyEvent *event);
@@ -190,14 +376,13 @@ private:
     byte clipboardType = COPY_NONE;
     int clipboardInfo  = 0;
 
-    int AddEntity(int type, float x, float y);
-    void PasteEntity(SceneEntity* copy, float x, float y);
     void DeleteEntity(int slot, bool updateUI = false);
 
     void FilterObjectList(QString filter);
     void FilterEntityList(QString filter);
 
     void CreateEntityList(int startSlot = -1);
+    void CenterCameraToEntity(int entityID);
 
     // XML Management
     void ParseGameXML(QString path);
@@ -233,6 +418,8 @@ private:
     bool modified    = false;
     QString tabTitle = "Scene Editor";
     QString tabPath  = "";
+
+    QUndoStack *undoStack = nullptr;
 };
 
 class ChunkLabel : public QLabel

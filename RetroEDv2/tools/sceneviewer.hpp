@@ -167,6 +167,7 @@ public:
     QList<int> selectedEntities;
     QList<int> selectedEntitiesXPos;
     QList<int> selectedEntitiesYPos;
+    QMap<int,Vector2<float>> entityMap;
 
     // Layer Editing
     Vector2<float> tilePos   = Vector2<float>(0.0f, 0.0f);

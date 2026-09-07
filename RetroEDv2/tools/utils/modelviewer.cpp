@@ -4,6 +4,9 @@
 
 #include <RSDKv4/modelv4.hpp>
 #include <RSDKv5/modelv5.hpp>
+#include <RSDKv3D/modelv3D.hpp>
+
+#define TO_RADIAN(degree) ((degree) * (RSDK_PI / 180.0f))
 
 ModelViewer::ModelViewer(QWidget *parent) : QOpenGLWidget(parent)
 {
@@ -124,6 +127,257 @@ RSDKv4::Model ModelViewer::getModelv4()
     }
 
     return mdl;
+}
+
+void ModelViewer::setModel(RSDKv3D::Model::TMF mdl, QString tex)
+{
+    model.faceVerticesCount = 3;
+    model.indices           = mdl.indices;
+
+    model.colors.clear();
+    model.hasColors = false;
+
+    model.texCoords.clear();
+    for (auto &uv : mdl.vertices) {
+        RSDKv5::Model::TexCoord v5uv;
+        v5uv.x = uv.tu;
+        v5uv.y = uv.tv;
+        model.texCoords.append(v5uv);
+    }
+    model.hasTextures = true;
+
+    model.frames.clear();
+    RSDKv5::Model::Frame v5f;
+    for (auto &v : mdl.vertices) {
+        RSDKv5::Model::Frame::Vertex v5v;
+        v5v.x  = v.x;
+        v5v.y  = v.y;
+        v5v.z  = v.z;
+        v5v.nx = v.nx;
+        v5v.ny = v.ny;
+        v5v.nz = v.nz;
+        v5f.vertices.append(v5v);
+    }
+    model.frames.append(v5f);
+    model.hasNormals = true;
+
+    texFile = tex;
+}
+
+void ModelViewer::getAnimations(RSDKv3D::Model::Animator *animator, QString path)
+{
+    Reader reader(path);
+
+    byte nodeCount = reader.read<byte>();
+    ushort poseCount = reader.read<ushort>();
+
+    for (int i = 0; i < nodeCount; ++i){
+        RSDKv3D::Model::AnimatorPart *node = &animator->nodes[i];
+        byte nameLength = reader.read<byte>();
+        char cname[0x100];
+        for (int n = 0; n < nameLength; ++n)
+            cname[n] = reader.read<byte>();
+        node->name = QString::fromUtf8(cname);
+        node->x = reader.read<float>();
+        node->y = reader.read<float>();
+        node->z = reader.read<float>();
+
+        node->numIndices = reader.read<ushort>();
+        node->indices = new ushort[node->numIndices];
+        for (int i = 0; i < node->numIndices; ++i)
+            node->indices[i] = reader.read<ushort>();
+
+        byte poseFlipped = 0;
+        ushort poseValue = 0;
+        for (int p = 0; p < poseCount; ++p){
+            poseFlipped = reader.read<byte>();
+            poseValue   = reader.read<ushort>();
+
+            node->ZPosing[p] = -TO_RADIAN(poseValue);
+            if (!poseFlipped)
+                node->ZPosing[p] = -node->ZPosing[p];
+
+            poseFlipped = reader.read<byte>();
+            poseValue   = reader.read<ushort>();
+
+            node->YPosing[p] = -TO_RADIAN(poseValue);
+            if (!poseFlipped)
+                node->YPosing[p] = -node->YPosing[p];
+
+            poseFlipped = reader.read<byte>();
+            poseValue = reader.read<ushort>();
+
+            node->XPosing[p] = -TO_RADIAN(poseValue);
+            if (!poseFlipped)
+                node->XPosing[p] = -node->XPosing[p];
+
+        }
+    }
+
+    animator->nodeCount = reader.read<ushort>();
+    animator->nodeIndices = new byte[animator->nodeCount];
+
+    for (int i = 0; i < animator->nodeCount; ++i)
+        animator->nodeIndices[i] = reader.read<byte>();
+
+    byte numStates = reader.read<byte>();
+
+    for (int i = 0; i < numStates; ++i){
+        RSDKv3D::Model::AnimatorState *state = &animator->states[i];
+        byte nameLength = reader.read<byte>();
+        QByteArray cname = reader.readByteArray(nameLength);
+        state->name = QString::fromUtf8(cname);
+
+        state->frameDuration = reader.read<byte>();
+        state->loopIndex = reader.read<byte>();
+        state->frameCount = reader.read<byte>();
+        for (int f = 0; f < state->frameCount; ++f)
+            state->indices[f] = reader.read<ushort>();
+    }
+
+    animator->animationID = 0;
+    animator->nextAnimation = 0;
+}
+void ModelViewer::setPlayerVertexPositions(int nodeID)
+{
+    RSDKv3D::Model::Animator *anim = &S3DAni;
+    RSDKv3D::Model::AnimatorPart *node = &anim->nodes[nodeID];
+
+    QMatrix4x4 *matrix = &matModel;
+
+    for (int i = 0; i < node->numIndices; ++i){
+        RSDKv3D::Model::Vertex *vert = &S3Dmodel.mdl.vertices[node->indices[i]];
+        RSDKv3D::Model::Vertex *baseVert = &S3Dmodel.mdlBase.vertices[node->indices[i]];
+        QVector4D fstRow = matrix->row(0);
+        QVector4D sndRow = matrix->row(1);
+        QVector4D thrRow = matrix->row(2);
+        vert->x = fstRow.x() * baseVert->x + fstRow.y() * baseVert->y + fstRow.z() * baseVert->z + fstRow.w();
+        vert->y = sndRow.x() * baseVert->x + sndRow.y() * baseVert->y + sndRow.z() * baseVert->z + sndRow.w();
+        vert->z = thrRow.x() * baseVert->x + thrRow.y() * baseVert->y + thrRow.z() * baseVert->z + thrRow.w();
+    }
+}
+void ModelViewer::setPlayerVertexNormals(int nodeID)
+{
+    RSDKv3D::Model::Animator *anim = &S3DAni;
+    RSDKv3D::Model::AnimatorPart *node = &anim->nodes[nodeID];
+
+    QMatrix4x4 *matrix = &matModel;
+
+    for (int i = 0; i < node->numIndices; ++i){
+        RSDKv3D::Model::Vertex *vert = &S3Dmodel.mdl.vertices[node->indices[i]];
+        RSDKv3D::Model::Vertex *baseVert = &S3Dmodel.mdlBase.vertices[node->indices[i]];
+        QVector4D fstRow = matrix->row(0);
+        QVector4D sndRow = matrix->row(1);
+        QVector4D thrRow = matrix->row(2);
+        vert->nx = fstRow.x() * baseVert->nx + fstRow.y() * baseVert->ny + fstRow.z() * baseVert->nz + fstRow.w();
+        vert->ny = sndRow.x() * baseVert->nx + sndRow.y() * baseVert->ny + sndRow.z() * baseVert->nz + sndRow.w();
+        vert->nz = thrRow.x() * baseVert->nx + thrRow.y() * baseVert->ny + thrRow.z() * baseVert->nz + thrRow.w();
+    }
+}
+
+void ModelViewer::setAnimationFrame(){
+
+    RSDKv3D::Model::Animator *anim = &S3DAni;
+    QMatrix4x4 matWorld;
+
+    ushort id = anim->animationID;
+    if (anim->animationID != anim->nextAnimation)
+        id = anim->nextAnimation;
+    anim->frameTimer += anim->states[id].frameDuration;
+    if (anim->frameTimer >= 240){
+        anim->frameTimer -= 240;
+
+        if (++anim->frameID >= anim->states[anim->animationID].frameCount)
+            anim->frameID = anim->states[anim->animationID].loopIndex;
+
+        if (anim->animationID != anim->nextAnimation){
+            anim->animationID = anim->nextAnimation;
+            anim->frameID = 0;
+        }
+
+        anim->nextFrame = anim->frameID + 1;
+        if (anim->nextFrame >= anim->states[anim->animationID].frameCount)
+            anim->nextFrame = anim->states[anim->animationID].loopIndex;
+    }
+    matrixIdentity.setToIdentity();
+    float timer = anim->frameTimer / 240.0f;
+    for (int i = 0; i < 36; ++i){
+        RSDKv3D::Model::AnimatorPart *node = &anim->nodes[i];
+
+        RSDKv3D::Model::AnimatorState *state = &anim->states[anim->animationID];
+        RSDKv3D::Model::AnimatorState *stateNext = &anim->states[anim->nextAnimation];
+        memcpy(&matrixSonicNodeRotation[i], &matModel, sizeof(matrixSonicNodeRotation[i]));
+        float ZPosAnim = node->ZPosing[state->indices[anim->frameID]];
+        float ZPosNext = node->ZPosing[stateNext->indices[anim->nextFrame]];
+        matWorld.rotate((1.0f - timer) * ZPosAnim + (1.0f * timer) * ZPosNext, 0.0f, 0.0f, 1.0f);
+        matrixSonicNodeRotation[i] *= matWorld;
+        float YPosAnim = node->YPosing[state->indices[anim->frameID]];
+        float YPosNext = node->YPosing[stateNext->indices[anim->nextFrame]];
+        matWorld.rotate((1.0f - timer) * YPosAnim + (1.0f * timer) * YPosNext, 0.0f, 1.0f, 0.0f);
+        matrixSonicNodeRotation[i] *= matWorld;
+
+        float XPosAnim = node->XPosing[state->indices[anim->frameID]];
+        float XPosNext = node->XPosing[stateNext->indices[anim->nextFrame]];
+        matWorld.rotate((1.0f - timer) * XPosAnim + (1.0f * timer) * XPosNext, 1.0f, 0.0f, 0.0f);
+        matrixSonicNodeRotation[i] *= matWorld;
+
+        memcpy(&matrixSonicNodeTransform[i], &matModel, sizeof(matrixSonicNodeTransform[i]));
+        matWorld.translate(-node->x, -node->y, -node->z);
+        matrixSonicNodeTransform[i] *= matWorld;
+        matrixSonicNodeTransform[i] *= matrixSonicNodeRotation[i];
+
+        matWorld.translate(node->x, node->y, node->z);
+        matrixSonicNodeTransform[i] *= matWorld;
+    }
+    bool parented = false;
+    for (int i = 0; i < anim->nodeCount; ++i) {
+        if (!parented){
+            if (anim->nodeIndices[i] == 0xFE || anim->nodeIndices[i] == 0xFF){
+                parented = (anim->nodeIndices[i] == 0xFE);
+                continue;
+            }
+
+            memcpy(&matModel, &matrixIdentity, sizeof(matModel));
+            for (int k = i; anim->nodeIndices[k] < 0xFE; ++k) {
+                matModel *= matrixSonicNodeTransform[anim->nodeIndices[k]];
+            }
+            setPlayerVertexPositions(anim->nodeIndices[i]);
+
+            memcpy(&matModel, &matrixIdentity, sizeof(matModel));
+            for (int k = i; anim->nodeIndices[k] < 0xFE; ++k) {
+                matModel *= matrixSonicNodeRotation[anim->nodeIndices[k]];
+            }
+            setPlayerVertexNormals(anim->nodeIndices[i]);
+        }
+        else {
+            if (anim->nodeIndices[i] == 0xFE || anim->nodeIndices[i] == 0xFF) {
+                parented = (anim->nodeIndices[i] == 0xFE);
+                continue;
+            }
+
+            memcpy(&matModel, &matrixSonicNodeTransform[anim->nodeIndices[i]], sizeof(matModel));
+            setPlayerVertexPositions(anim->nodeIndices[i]);
+
+            memcpy(&matModel, &matrixSonicNodeRotation[anim->nodeIndices[i]], sizeof(matModel));
+            setPlayerVertexNormals(anim->nodeIndices[i]);
+        }
+    }
+
+
+    model.frames.clear();
+    RSDKv5::Model::Frame v5f;
+    for (auto &v : S3Dmodel.mdl.vertices) {
+        RSDKv5::Model::Frame::Vertex v5v;
+        v5v.x  = v.x;
+        v5v.y  = v.y;
+        v5v.z  = v.z;
+        v5v.nx = v.nx;
+        v5v.ny = v.ny;
+        v5v.nz = v.nz;
+        v5f.vertices.append(v5v);
+    }
+    model.frames.append(v5f);
+    model.hasNormals = true;
 }
 
 void ModelViewer::loadTexture(QString texturePath)
@@ -343,8 +597,9 @@ void ModelViewer::paintGL()
     }
 
     if (texFile != curTex) {
+        curTex = texFile;
         delete tex;
-        QImage src(texFile);
+        QImage src(curTex);
         tex = new QOpenGLTexture(QOpenGLTexture::Target2D);
         tex->create();
         tex->bind();
@@ -355,7 +610,6 @@ void ModelViewer::paintGL()
         tex->setSize(src.width(), src.height());
         tex->setData(src, QOpenGLTexture::GenerateMipMaps);
         glFuncs->glActiveTexture(GL_TEXTURE0);
-        glFuncs->glBindTexture(GL_TEXTURE_2D, tex->textureId());
     }
 
     // handle interpolation, set vertVBO properly using vertVBO->write

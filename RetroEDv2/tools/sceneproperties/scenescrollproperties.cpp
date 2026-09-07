@@ -21,19 +21,24 @@ void SceneScrollProperties::setupUI(SceneHelpers::TileLayer::ScrollIndexInfo *in
     ui->scrollSpeed->setValue(info->scrollSpeed);
     ui->useDeform->setChecked(info->deform);
 
-    connect(ui->parallaxFactor, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [info](double v) {
-        info->parallaxFactor = v;
+    connect(ui->parallaxFactor, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [this](double v) {
+        //info->parallaxFactor = v;
 
-        if (scnEditor)
-            scnEditor->CreateScrollList(true);
+        //if (scnEditor)
+        //    scnEditor->CreateScrollList(true);
+        emit editEntry(v, 0);
     });
-    connect(ui->scrollSpeed, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [info](double v) {
-        info->scrollSpeed = v;
+    connect(ui->scrollSpeed, QOverload<double>::of(&QDoubleSpinBox::valueChanged), [this](double v) {
+        //info->scrollSpeed = v;
 
-        if (scnEditor)
-            scnEditor->CreateScrollList(true);
+        //if (scnEditor)
+        //    scnEditor->CreateScrollList(true);
+        emit editEntry(v, 1);
     });
-    connect(ui->useDeform, &QCheckBox::toggled, [info](bool c) { info->deform = c; });
+    connect(ui->useDeform, &QCheckBox::toggled, [this](bool c) {
+        //info->deform = c;
+        emit editEntry(c, 2);
+    });
 
     ui->instanceList->clear();
     for (auto &instance : info->instances) {
@@ -73,6 +78,7 @@ void SceneScrollProperties::setupUI(SceneHelpers::TileLayer::ScrollIndexInfo *in
 
     connect(ui->addInst, &QToolButton::clicked, [this, info] {
         uint c = ui->instanceList->count();
+        /*
 
         SceneHelpers::TileLayer::ScrollInstance instance;
 
@@ -87,24 +93,28 @@ void SceneScrollProperties::setupUI(SceneHelpers::TileLayer::ScrollIndexInfo *in
                                             .arg(instance.length)
                                             .arg(instance.layerID));
         ui->instanceList->setCurrentRow(c);
-
+        */
+        emit manageInst(c, false);
         // DoAction("Add Instance: " + QString::number(info->instances.count() - 1));
     });
 
     connect(ui->rmInst, &QToolButton::clicked, [this, info] {
         int c = ui->instanceList->currentRow();
+        /*
         int n = ui->instanceList->currentRow() == ui->instanceList->count() - 1 ? c - 1 : c;
 
         info->instances.removeAt(c);
 
         delete ui->instanceList->item(c);
         ui->instanceList->setCurrentRow(n);
-
+*/
+        emit manageInst(c, true);
         // DoAction("Remove Instance: " + QString::number(c));
     });
 
     connect(ui->startLine, QOverload<int>::of(&QSpinBox::valueChanged), [this, info](int v) {
         int c = ui->instanceList->currentRow();
+        /*
 
         info->instances[c].startLine = v;
 
@@ -116,11 +126,13 @@ void SceneScrollProperties::setupUI(SceneHelpers::TileLayer::ScrollIndexInfo *in
                 .arg(info->instances[c].length)
                 .arg(info->instances[c].layerID));
         ui->instanceList->blockSignals(false);
-
+        */
+        emit editInst(c, v, 0);
         // DoAction("Changed Instance Start Line");
     });
     connect(ui->length, QOverload<int>::of(&QSpinBox::valueChanged), [this, info](int v) {
         int c = ui->instanceList->currentRow();
+        /*
 
         info->instances[c].length = v;
 
@@ -132,12 +144,14 @@ void SceneScrollProperties::setupUI(SceneHelpers::TileLayer::ScrollIndexInfo *in
                 .arg(info->instances[c].length)
                 .arg(info->instances[c].layerID));
         ui->instanceList->blockSignals(false);
-
+        */
+        emit editInst(c, v, 1);
         // DoAction("Changed Instance Length");
     });
 
     connect(ui->layerID, QOverload<int>::of(&QComboBox::currentIndexChanged), [this, info](int v) {
         int c = ui->instanceList->currentRow();
+        /*
 
         ui->instanceList->blockSignals(true);
         if (v < 0)
@@ -151,7 +165,8 @@ void SceneScrollProperties::setupUI(SceneHelpers::TileLayer::ScrollIndexInfo *in
                 .arg(info->instances[c].length)
                 .arg(info->instances[c].layerID));
         ui->instanceList->blockSignals(false);
-
+        */
+        emit editInst(c, v, 2);
         // DoAction("Changed LayerID");
     });
 }

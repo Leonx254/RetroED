@@ -30,10 +30,10 @@ void RSDKv5::Stamps::write(Writer &writer)
 void RSDKv5::Stamps::StampEntry::read(Reader &reader)
 {
     name   = reader.readString();
-    size.x = reader.read<int>();
-    size.y = reader.read<int>();
-    byte tileCount = size.x * size.y;
-    for (int tile = 0; tile < tileCount; tile++){
+    size.x = reader.read<ushort>();
+    size.y = reader.read<ushort>();
+    uint tileCount = size.x * size.y;
+    for (uint tile = 0; tile < tileCount; tile++){
         tiles.append(reader.read<ushort>());
     };
 }
@@ -43,8 +43,8 @@ void RSDKv5::Stamps::StampEntry::write(Writer &writer)
     writer.write(name);
     writer.write(size.x);
     writer.write(size.y);
-    byte tileCount = size.x * size.y;
-    for (int tile = 0; tile < tileCount; tile++){
+    uint tileCount = size.x * size.y;
+    for (uint tile = 0; tile < tileCount; tile++){
         writer.write(tiles[tile]);
     };
 }

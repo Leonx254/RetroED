@@ -58,6 +58,7 @@ public:
     QList<Property *> subProperties;
 
     void *valuePtr;
+    QVariant prevValue;
 
     void addSubProperty(Property *property);
     void removeSubProperty(Property *property);
